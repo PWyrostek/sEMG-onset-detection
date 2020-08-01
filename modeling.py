@@ -8,7 +8,7 @@ import multiprocessing
 
 np.seterr(divide='ignore')
 BASE_FREQUENCY = 1000
-THREADS_AMOUNT = 1
+THREADS_AMOUNT = 5
 
 
 def main():
@@ -21,7 +21,11 @@ def main():
     result = emg_data[data_column, 7]
 
     print("SHOULD BE {0}".format(result))
-    make_plot(emg_single_data, torque_data, result, onset_two_step_alg(emg_single_data, 150, 1, 0.03, 10, 50, 200))
+    found_onset = onset_two_step_alg(emg_single_data, 170, 1, 0.01, 2, 25, 200)
+    print(found_onset)
+    make_plot(emg_single_data, torque_data, result, found_onset)
+    # params = find_optimal_params(mat_data,function_test_twostep)
+    # print(params)
 
 
 def split(list, n):
@@ -30,7 +34,7 @@ def split(list, n):
     return (list[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
-def make_plot(emg_data, torque_data, expected, found_onset=0, found_right_side=5000):
+def make_plot(emg_data, torque_data, expected, found_onset=0):
     """Creates a plot presenting voltage and torque"""
     fig, axs = plt.subplots(2)
     plt.style.use('seaborn-whitegrid')
@@ -38,7 +42,6 @@ def make_plot(emg_data, torque_data, expected, found_onset=0, found_right_side=5
     axs[1].plot(torque_data, linewidth=1, color="red")
     axs[0].axvline(x=found_onset, color='tab:orange', alpha=0.5, linewidth=4)
     axs[0].axvline(x=expected, color='tab:green', alpha=0.5, linewidth=4)
-    axs[0].axvline(x=found_right_side, color='tab:pink', alpha=0.5, linewidth=4)
     fig = plt.gcf()
     fig.set_size_inches(19.2, 10.8)
     plt.setp(axs, xticks=[i for i in range(0, len(emg_data), 100)])
@@ -48,7 +51,7 @@ def make_plot(emg_data, torque_data, expected, found_onset=0, found_right_side=5
 def find_optimal_params(data, function):
     diffs_list = []
     threads = []
-    slices = (list(split(range(2, 21), THREADS_AMOUNT)))
+    slices = (list(split(range(9, 19), THREADS_AMOUNT)))
 
     manager = multiprocessing.Manager()
     results = manager.list()
@@ -71,6 +74,8 @@ def find_optimal_params(data, function):
     else:
         length = len(diffs_list[0])
 
+    print(length)
+    print(len(diffs_list[0]))
     for i in range(0, length):
         diffs_sum.append(
             (sum(row[i][0] for row in diffs_list), diffs_list[0][i][1]))
@@ -89,20 +94,26 @@ def function_test_twostep(data, results, begin, end):
             diffs = []
             for W_1 in range(10, 21):
                 print(W_1)
-                for k_1 in range(1, 4):
-                    print("@@@ {0}".format(k_1))
+                for k_1 in range(1, 2):
+                    print("@@@ {0} {1}".format(W_1, k_1))
                     for d_1 in range(1, 4):
-                        print("###### {0}".format(d_1))
+                        print("###### {0} {1} {2}".format(W_1, k_1, d_1))
                         for h_2 in range(2, 20):
-                            print("%%%%%%%%% {0}".format(h_2))
-                            for W_2 in range(1, 11):
-                                print("&&&&&&&&&&&&&& {0}".format(W_2))
+                            print("%%%%%%%%% {0} {1} {2} {3}".format(W_1, k_1, d_1, h_2))
+                            for W_2 in range(5, 16):
+                                print("&&&&&&&&&&&&&& {0} {1} {2} {3} {4}".format(W_1, k_1, d_1, h_2, W_2))
                                 for M_2 in range(15, 21):
-                                    diffs.append(
-                                        (abs((function(emg_single_data, W_1 * 10, k_1, d_1 / 100, h_2, W_2 * 5,
-                                                       M_2 * 10) - result) ** 2), (W_1 * 10, k_1, d_1 / 100, h_2,
+                                    try:
+                                        value = function(emg_single_data, W_1 * 10, k_1, d_1 / 100, h_2, W_2 * 5,
+                                                         M_2 * 10)
+                                        diffs.append((abs((value - result) ** 2), (W_1 * 10, k_1, d_1 / 100, h_2,
                                                                                    W_2 * 5,
                                                                                    M_2 * 10)))
+                                    except:
+                                        diffs.append(
+                                            (5000, (W_1 * 10, k_1, d_1 / 100, h_2,
+                                                    W_2 * 5,
+                                                    M_2 * 10)))
 
             return diffs
         else:
@@ -231,7 +242,6 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
             estimate_theta_1_step(data, j, k) / theta_0) - 1)
         return value
 
-    # h = 10
     # W = 25
     delta = 100
     # M = 200
@@ -243,12 +253,11 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
     # print(t_a)
     log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
                            range(W + left, t_a + 1)]
-    return max(log_likelihood_list)[1]
+    return max(log_likelihood_list)[1] + delta
 
 
 def onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2):
     left, right = onset_sign_changes(data, W_1, k_1, d_1)  # 200,1,0.01
-    print(left, right)
     result = onset_AGLRstep_two_step(data, h_2, W_2, M_2, left, right)  # 20,15,20
     # print(result)
     return result
