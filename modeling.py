@@ -6,30 +6,31 @@ from sklearn.decomposition import PCA
 import math
 import multiprocessing
 
-np.seterr(divide='ignore')
 BASE_FREQUENCY = 1000
-THREADS_AMOUNT = 5
+THREADS_AMOUNT = 6
+
+DATABASE_NAME = 'database.mat'
+DATABASE_TABLE = 'emg1'
+DATA_COLUMN = 0
 
 
 def main():
-    data_column = 0
-    mat_data = sio.loadmat('database.mat')
-    emg_data = mat_data['emg1']
+    mat_data = sio.loadmat(DATABASE_NAME)
+    emg_data = mat_data[DATABASE_TABLE]
     torque_data = emg_data[:, 6]
-    emg_single_data = emg_data[:, data_column]
+    emg_single_data = emg_data[:, DATA_COLUMN]
 
-    result = emg_data[data_column, 7]
+    result = emg_data[DATA_COLUMN, 7]
 
     print("SHOULD BE {0}".format(result))
-    found_onset = onset_two_step_alg(emg_single_data, 170, 1, 0.01, 2, 25, 200)
-    print(found_onset)
-    make_plot(emg_single_data, torque_data, result, found_onset)
-    # params = find_optimal_params(mat_data,function_test_twostep)
-    # print(params)
+    # found_onset = onset_two_step_alg(emg_single_data, 170, 1, 0.01, 2, 25, 200)
+    # print(found_onset)
+    # make_plot(emg_single_data, torque_data, result, found_onset)
+    params = find_optimal_params(mat_data,function_test_AGLRs, range(8,20))
+    print(params)
 
 
 def split(list, n):
-    """Splits list into n parts"""
     k, m = divmod(len(list), n)
     return (list[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
@@ -48,10 +49,11 @@ def make_plot(emg_data, torque_data, expected, found_onset=0):
     plt.show()
 
 
-def find_optimal_params(data, function):
+def find_optimal_params(data, function, data_range):
+    # data_range = range(9, 19)
     diffs_list = []
     threads = []
-    slices = (list(split(range(9, 19), THREADS_AMOUNT)))
+    slices = (list(split(data_range, THREADS_AMOUNT)))
 
     manager = multiprocessing.Manager()
     results = manager.list()
@@ -74,14 +76,46 @@ def find_optimal_params(data, function):
     else:
         length = len(diffs_list[0])
 
-    print(length)
-    print(len(diffs_list[0]))
     for i in range(0, length):
         diffs_sum.append(
             (sum(row[i][0] for row in diffs_list), diffs_list[0][i][1]))
     # print(diffs_sum)
     best_param = (min(diffs_sum)[1])
     return best_param
+
+
+def function_test_sign_changes(data, results, begin, end):
+    """Function evaluated by every process - can't be an inner function due to pickling issues"""
+
+    def get_diffs(function, data, column):
+        result = data[column, 7]
+        if result >= 0:
+            emg_single_data = data[:, column]
+            data_length = len(emg_single_data)
+            diffs = []
+            for W in range(10, 21):
+                print(W)
+                for k in range(1, 2):
+                    print("@@@ {0} {1}".format(W, k))
+                    for d in range(1, 4):
+                        print("###### {0} {1} {2}".format(W, k, d))
+                        value = function(emg_single_data, W * 10, k, d / 100)[0]
+                        if value <= result:
+                            diffs.append((abs((value - result) ** 2), (W * 10, k, d / 100)))
+                        else:
+                            diffs.append((data_length ** 2, (W * 10, k, d / 100)))
+            return diffs
+        else:
+            return None
+
+    diffs_list = []
+    for i in range(begin, end):
+        for j in range(0, 6):
+            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
+            result = get_diffs(onset_sign_changes, data['emg{0}'.format(i)], j)
+            if result != None:
+                diffs_list.append(result)
+    results.append(diffs_list)
 
 
 def function_test_twostep(data, results, begin, end):
@@ -91,6 +125,7 @@ def function_test_twostep(data, results, begin, end):
         result = data[column, 7]
         if result >= 0:
             emg_single_data = data[:, column]
+            data_length = len(emg_single_data)
             diffs = []
             for W_1 in range(10, 21):
                 print(W_1)
@@ -111,9 +146,9 @@ def function_test_twostep(data, results, begin, end):
                                                                                    M_2 * 10)))
                                     except:
                                         diffs.append(
-                                            (5000, (W_1 * 10, k_1, d_1 / 100, h_2,
-                                                    W_2 * 5,
-                                                    M_2 * 10)))
+                                            (data_length ** 2, (W_1 * 10, k_1, d_1 / 100, h_2,
+                                                                W_2 * 5,
+                                                                M_2 * 10)))
 
             return diffs
         else:
@@ -139,7 +174,7 @@ def function_test_AGLRs(data, results, begin, end):
             diffs = []
             for h in range(2, 20):
                 print(h)
-                for W in range(1, 11):
+                for W in range(5, 16):
                     for M in range(15, 21):
                         diffs.append(
                             (abs((function(emg_single_data, h, W * 5, M * 10) - result) ** 2), (h, W * 5, M * 10)))
@@ -245,7 +280,7 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
     # W = 25
     delta = 100
     # M = 200
-    theta_0 = estimate_theta_0(data[left:right], M)
+    theta_0 = estimate_theta_0(data, M)
     values = [(k, count_log_likelihood_ratio_step(data, k - W, k, theta_0)) for k in range(W + left, right)]
     values = [item for item in values if item[1] >= h]
     # print(values)
@@ -279,12 +314,6 @@ def onset_sign_changes(data, W, k, d):
 
     def find_right_side():
         for i in range(0, len(data)):
-            endWindow = 0
-            if i + W > (len(data) - 1):
-                endWindow = len(data) - 1
-            else:
-                endWindow = i + W
-
             if variability[i] == max(variability):
                 return i
 
@@ -387,7 +416,7 @@ def onset_AGLRramp(data):
         sum_lower = 0
         for i in range(j, k + 1):
             sum_upper += (data[i] ** 2 - theta_0)
-            sum_lower += count_unit_ramp(i, j, tau)  # i+1?
+            sum_lower += count_unit_ramp(i, j, tau)
         return sum_upper / sum_lower
 
     def count_log_likelihood_ratio_ramp(data, j, k, theta_0, tau):

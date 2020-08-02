@@ -12,8 +12,8 @@
 
 ## Instrukcja uruchomienia programu
 Do folderu z plikiem modeling.py konieczne jest pobranie z repozytorium pliku database.mat.\
-W funkcji main() do wartości emg_data przypisujemy odwołujemy się do jakiejś z wartości 'emg1' do 'emg20', która odpowiada odpowiedniej tabeli z bazy database.mat\
-do wartości data_column przypisujemy wartość od 0 do 5 odpowiadającą interesującej nas kolumnie z tabeli z danymi emg\
+Do wartości DATABASE_TABLE przypisujemy odwołujemy się do jakiejś z wartości 'emg1' do 'emg20', która odpowiada odpowiedniej tabeli z bazy database.mat\
+do wartości DATA_COLUMN przypisujemy wartość od 0 do 5 odpowiadającą interesującej nas kolumnie z wybranej tabeli z danymi emg\
 
 ## Funkcje odpowiadające za wykrywanie onset
 -onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2) gdzie data to pojedyncza kolumna z tabeli z danymi emg, argumenty W_1, k_1 oraz d_1 to argumenty algorytmu onset_sign_changes, a argumenty h_2, W_2, M_2 to parametry algorytmu onset_AGLRstep\
