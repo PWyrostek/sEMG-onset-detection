@@ -10,23 +10,23 @@ def function_test_sign_changes(data, results, begin, end):
             emg_single_data = data[:, column]
             data_length = len(emg_single_data)
             diffs = []
-            for W in range(10, 21):
+            for W in range(15, 31):
                 print(W)
                 for k in range(1, 2):
                     print("@@@ {0} {1}".format(W, k))
-                    for d in range(1, 4):
+                    for d in range(1, 9):
                         print("###### {0} {1} {2}".format(W, k, d))
-                        value = function(emg_single_data, W * 10, k, d / 100)[0]
-                        if value <= result:
-                            diffs.append((abs((value - result) ** 2), (W * 10, k, d / 100)))
+                        value = function(emg_single_data, W * 10, k, d / 400)[0]
+                        if value is not None and value <= result:
+                            diffs.append((abs((value - result) ** 2), (W * 10, k, d / 400)))
                         else:
-                            diffs.append((data_length ** 2, (W * 10, k, d / 100)))
+                            diffs.append((data_length ** 3, (W * 10, k, d / 400)))
             return diffs
         else:
             return None
 
     diffs_list = []
-    for i in range(begin, end):
+    for i in range(begin, end + 1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             result = get_diffs(onset_sign_changes, data['emg{0}'.format(i)], j)
@@ -44,24 +44,26 @@ def function_test_AGLRs_after_step(data, results, begin, end, sign_changes_param
             emg_single_data = data[:, column]
             data_length = len(emg_single_data)
             diffs = []
-            for h in range(2, 20):
-                print(h)
-                for W in range(5, 16):
-                    for M in range(15, 21):
+            for h in range(1, 20):
+                print('{0}'.format(h))
+                for W in range(10, 20):
+                    print('{0} {1}'.format(h, W))
+                    for M in range(10, 16):
                         try:
-                            value = function(emg_single_data, *sign_changes_params, h, W * 5, M * 10)
+                            value = function(emg_single_data, *sign_changes_params, h * 10, W * 5, M * 15)
                             diffs.append(
-                                (abs((value - result) ** 2), (h, W * 5, M * 10)))
+                                (abs((value - result) ** 2), (h * 10, W * 5, M * 15)))
                         except:
                             diffs.append(
-                                (data_length ** 2, (h, W * 5, M * 10)))
+                                (data_length ** 2, (h * 10, W * 5, M * 15)))
 
             return diffs
         else:
             return None
 
     diffs_list = []
-    for i in range(begin, end):
+    print("{0} {1}".format(begin,end))
+    for i in range(begin, end+1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             result = get_diffs(onset_two_step_alg, data['emg{0}'.format(i)], j)
@@ -107,7 +109,7 @@ def function_test_twostep(data, results, begin, end):
             return None
 
     diffs_list = []
-    for i in range(begin, end):
+    for i in range(begin, end + 1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             result = get_diffs(onset_two_step_alg, data['emg{0}'.format(i)], j)
@@ -134,13 +136,15 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
     # M = 200
     theta_0 = estimate_theta_0(data, M)
     values = [(k, count_log_likelihood_ratio_step(data, k - W, k, theta_0)) for k in range(W + left, right)]
+    # print(values)
     values = [item for item in values if item[1] >= h]
     # print(values)
     t_a = min(values)[0]
     # print(t_a)
     log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
                            range(W + left, t_a + 1)]
-    return max(log_likelihood_list)[1] + delta
+    # print(log_likelihood_list)
+    return max(log_likelihood_list)[1]
 
 
 def onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2):
@@ -152,7 +156,7 @@ def onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2):
 
 def onset_sign_changes(data, W, k, d):
     def find_left_side():
-        for i in range(0, len(data)):
+        for i in range(0, len(variability) - W // 4):
             endWindow = 0
             if i + W > (len(data) - 1):
                 endWindow = len(data) - 1

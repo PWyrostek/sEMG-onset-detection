@@ -42,7 +42,7 @@ def function_test_hodges(data, results, begin, end):
             return None
 
     diffs_list = []
-    for i in range(begin, end):
+    for i in range(begin, end + 1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             result = get_diffs(onset_hodges_bui, data['emg{0}'.format(i)], j)

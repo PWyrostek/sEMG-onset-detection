@@ -18,7 +18,7 @@ def function_test_komi(data, result, begin, end):
         return diffs
 
     diffs_list = []
-    for i in range(begin, end):
+    for i in range(begin, end + 1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             diffs_list.append(get_diffs(onset_komi, data['emg{0}'.format(i)], j))
