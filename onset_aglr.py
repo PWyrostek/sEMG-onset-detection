@@ -1,6 +1,7 @@
 import numpy as np
 from utilities import estimate_theta_0
 
+
 def onset_AGLRstep(data, h, W, M):
     def estimate_theta_1_step(data, j, k):
         sum = 0
@@ -14,17 +15,18 @@ def onset_AGLRstep(data, h, W, M):
             estimate_theta_1_step(data, j, k) / theta_0) - 1)
         return value
 
-    # W = 25
-    # h = 10
     delta = 100
-    # M = 200
     theta_0 = estimate_theta_0(data, M)
-    values = [(k, count_log_likelihood_ratio_step(data, k - W, k, theta_0)) for k in range(W, len(data))]
-    values = [item for item in values if item[1] >= h]
-    t_a = min(values)[0]
+    values = [(count_log_likelihood_ratio_step(data, k - W, k, theta_0), k) for k in range(W, len(data))]
+    if max(values)[0] < h:
+        t_a = max(values)[1]
+    else:
+        values = [item for item in values if item[0] >= h]
+        t_a = values[0][1]
     log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
                            range(W, t_a + 1)]
     return max(log_likelihood_list)[1]
+
 
 def function_test_AGLRs(data, results, begin, end):
     """Function evaluated by every process - can't be an inner function due to pickling issues"""
@@ -37,14 +39,15 @@ def function_test_AGLRs(data, results, begin, end):
             diffs = []
             for h in range(1, 20):
                 print("{0}".format(h))
-                for W in range(10, 20):
+                for W in range(5, 20):
                     print("{0} {1}".format(h, W))
                     for M in range(10, 16):
                         try:
-                            diffs.append((abs((function(emg_single_data, h * 10, W * 5, M * 15) - result) ** 2), (h * 10, W * 5, M * 15)))
+                            diffs.append((abs((function(emg_single_data, h * 10, W * 10, M * 15) - result) ** 2),
+                                          (h * 10, W * 10, M * 15)))
                         except:
                             diffs.append(
-                                (data_length ** 2, (h * 10, W * 5, M * 15)))
+                                (data_length ** 2, (h * 10, W * 10, M * 15)))
             return diffs
         else:
             return None
@@ -57,6 +60,7 @@ def function_test_AGLRs(data, results, begin, end):
             if result != None:
                 diffs_list.append(result)
     results.append(diffs_list)
+
 
 def onset_AGLRramp(data):
     def estimate_theta_1_ramp(data, j, k, theta_0, tau):
@@ -83,7 +87,6 @@ def onset_AGLRramp(data):
         else:
             return (k - t_0) / tau
 
-    # data=abs(data)
     W = 25
     h = 10
     delta = 100

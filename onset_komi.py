@@ -1,11 +1,14 @@
 import math
 
+
 def onset_komi(data, h):
     data = abs(data)
     # h=0.03
     for i in range(0, len(data)):
         if data[i] > h:
             return i
+    return -1
+
 
 def function_test_komi(data, result, begin, end):
     """Function evaluated by every process - can't be an inner function due to pickling issues"""

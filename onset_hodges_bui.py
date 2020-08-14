@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def onset_hodges_bui(data, h, W, M):
     def count_y(k):
         sum = 0
@@ -21,6 +22,7 @@ def onset_hodges_bui(data, h, W, M):
     values = [item for item in values if item[1] >= h]
 
     return values[0][0] - W
+
 
 def function_test_hodges(data, results, begin, end):
     """Function evaluated by every process - can't be an inner function due to pickling issues"""

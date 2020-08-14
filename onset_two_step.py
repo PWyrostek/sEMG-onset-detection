@@ -1,6 +1,7 @@
 import numpy as np
 from utilities import estimate_theta_0
 
+
 def function_test_sign_changes(data, results, begin, end):
     """Function evaluated by every process - can't be an inner function due to pickling issues"""
 
@@ -21,6 +22,40 @@ def function_test_sign_changes(data, results, begin, end):
                             diffs.append((abs((value - result) ** 2), (W * 10, k, d / 400)))
                         else:
                             diffs.append((data_length ** 3, (W * 10, k, d / 400)))
+            return diffs
+        else:
+            return None
+
+    diffs_list = []
+    for i in range(begin, end + 1):
+        for j in range(0, 6):
+            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
+            result = get_diffs(onset_sign_changes, data['emg{0}'.format(i)], j)
+            if result != None:
+                diffs_list.append(result)
+    results.append(diffs_list)
+
+
+def function_test_sign_changes_standalone(data, results, begin, end):
+    """Function evaluated by every process - can't be an inner function due to pickling issues"""
+
+    def get_diffs(function, data, column):
+        result = data[column, 7]
+        if result >= 0:
+            emg_single_data = data[:, column]
+            data_length = len(emg_single_data)
+            diffs = []
+            for W in range(15, 41):
+                print(W)
+                for k in range(1, 2):
+                    print("@@@ {0} {1}".format(W, k))
+                    for d in range(1, 9):
+                        print("###### {0} {1} {2}".format(W, k, d))
+                        try:
+                            value = function(emg_single_data, W * 10, k, d / 400)[0]
+                            diffs.append((abs((value - result) ** 2), (W * 10, k, d / 400)))
+                        except:
+                            diffs.append((data_length ** 2, (W * 10, k, d / 400)))
             return diffs
         else:
             return None
@@ -62,8 +97,8 @@ def function_test_AGLRs_after_step(data, results, begin, end, sign_changes_param
             return None
 
     diffs_list = []
-    print("{0} {1}".format(begin,end))
-    for i in range(begin, end+1):
+    print("{0} {1}".format(begin, end))
+    for i in range(begin, end + 1):
         for j in range(0, 6):
             print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ {0} {1}".format(i, j))
             result = get_diffs(onset_two_step_alg, data['emg{0}'.format(i)], j)
@@ -131,26 +166,24 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
             estimate_theta_1_step(data, j, k) / theta_0) - 1)
         return value
 
-    # W = 25
+    if right - left <= W:
+        return left
     delta = 100
-    # M = 200
     theta_0 = estimate_theta_0(data, M)
-    values = [(k, count_log_likelihood_ratio_step(data, k - W, k, theta_0)) for k in range(W + left, right)]
-    # print(values)
-    values = [item for item in values if item[1] >= h]
-    # print(values)
-    t_a = min(values)[0]
-    # print(t_a)
+    values = [(count_log_likelihood_ratio_step(data, k - W, k, theta_0), k) for k in range(W + left, right)]
+    if max(values)[0] < h:
+        t_a = max(values)[1]
+    else:
+        values = [item for item in values if item[0] >= h]
+        t_a = values[0][1]
     log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
                            range(W + left, t_a + 1)]
-    # print(log_likelihood_list)
     return max(log_likelihood_list)[1]
 
 
 def onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2):
     left, right = onset_sign_changes(data, W_1, k_1, d_1)  # 200,1,0.01
     result = onset_AGLRstep_two_step(data, h_2, W_2, M_2, left, right)  # 20,15,20
-    # print(result)
     return result
 
 
@@ -176,10 +209,7 @@ def onset_sign_changes(data, W, k, d):
     def diff(list):
         return [list[i + 1] - list[i] for i in range(0, len(list) - 1)]
 
-    # W = 200
-    # k = 1
     signs = [1 if single_data >= 0 else -1 for single_data in data]
-    # d = 0.01
     mul = 1.5
     h = (max(np.abs(diff(data[0:int(W * mul)]))) + d) * k
     data = abs(data)
@@ -190,6 +220,6 @@ def onset_sign_changes(data, W, k, d):
             if signs[j] == signs[j + 1] and (data[j] - data[j + 1]) > h:
                 points += 1
         variability.append(points)
-
-    # print([(i, variability[i], data[i]) for i in range(0,len(variability))])
+    if max(variability) == 0:
+        return (None, None)
     return (find_left_side(), find_right_side())

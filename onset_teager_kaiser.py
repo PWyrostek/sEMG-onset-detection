@@ -1,10 +1,12 @@
 import numpy as np
 
+
 def onset_teager_kaiser(data, W, k):
     var = np.var(data[0:W])
     for i in range(0, len(data)):
         if np.var(data[i:i + W]) > var * k:
             return i + W / 2
+    return -1
 
 
 def function_test_teager(data, results, begin, end):
