@@ -1,6 +1,8 @@
 import csv
 import multiprocessing
 import pprint
+import time
+
 import matplotlib.pyplot as plt
 import neptune
 import neptunecontrib.monitoring.optuna as opt_utils
@@ -12,12 +14,13 @@ from scipy import stats
 from onset_aglr import *
 from onset_komi import *
 from onset_two_step import *
+import statistics
 
 pp = pprint.PrettyPrinter(indent=4)
 THREADS_AMOUNT = 5
 
 DATABASE_NAME = 'database.mat'
-DATABASE_TABLE = 'emg27'
+DATABASE_TABLE = 'emg29'
 DATA_COLUMN = 3
 
 
@@ -71,14 +74,15 @@ def main():
                         if value is not None and value <= result:
                             sum += abs(value - result)
                         else:
+                            sum += abs(value - result)
                             sum += 5000 ** 2
                     except:
-                        sum += 5000 ** 2
+                        sum += 2 * (5000 ** 2)
             cost = sum
             return cost
 
         def objective_sign_changes_standalone(trial):
-            W = trial.suggest_int('W', 100, 400)
+            W = trial.suggest_int('W', 50, 600)
             k = trial.suggest_int('k', 1, 3)
             d = trial.suggest_uniform('d', 0.0025, 0.03)
             sum = 0
@@ -115,7 +119,7 @@ def main():
 
         def objective_AGLRs_second_step(trial):
             h = trial.suggest_int('h', 1, 300)
-            W = trial.suggest_int('W', 1, 100)
+            W = trial.suggest_int('W', 10, 100)
             M = trial.suggest_int('M', 50, 250)
             sum = 0
             for j in [3, 4, 8, 11, 14, 19, 25]:
@@ -123,7 +127,7 @@ def main():
                 for i in range(0, 6):
                     emg_single_data = emg_data[:, i]
                     try:
-                        value = onset_two_step_alg(emg_single_data, 378, 1, 0.01095605, h, W, M)
+                        value = onset_two_step_alg(emg_single_data, 120, 1, 0.00724023569, h, W, M)
                         result = emg_data[i, 7]
                         sum += abs(value - result)
                     except:
@@ -131,8 +135,8 @@ def main():
             cost = sum
             return cost
 
-        neptune.init(project_qualified_name='shared/showroom',
-                     api_token="ANONYMOUS=")
+        neptune.init(project_qualified_name='pwyrostek/sandbox',
+                     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZjM0ZTRiNjAtNDAxNy00YjVhLThiY2EtYzQ0YTdkOTNhMzk3In0=")
         neptune.create_experiment('optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
@@ -146,12 +150,15 @@ def main():
     torque_data = emg_data[:, 6]
     emg_single_data = emg_data[:, DATA_COLUMN]
 
-    # find_minimizing_params()
-    # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'results.csv')
-    # create_statistics('results.csv')
-
+    prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
+    create_statistics('after_change.csv')
+    # onset_sign_changes(emg_single_data, 120, 1, 0.00724023569, True, "emg29-3combined")
 
 def create_statistics(filename):
+    def nan_to_none(x):
+        if math.isnan(x):
+            return None
+        return x
     data = []
     with open(filename, newline='') as csvfile:
         reader = csv.reader(csvfile, delimiter=';')
@@ -165,64 +172,114 @@ def create_statistics(filename):
     AGLR_step = [float(item) if item != '' else float('NaN') for item in list_4]
     two_step = [float(item) if item != '' else float('NaN') for item in list_5]
 
-    print(stats.kruskal(list_3, list_4, list_5, nan_policy="omit"))
-    print(stats.kruskal(list_3, list_4, nan_policy="omit"))
-    print(stats.kruskal(list_4, list_5, nan_policy="omit"))
-    print(stats.kruskal(list_3, list_5, nan_policy="omit"))
     outlier = 500
-    errors_sign_changes = [(results[i] - sign_changes[i]) if not math.isnan(sign_changes[i]) else None for i in
+    errors_sign_changes = [(sign_changes[i] - results[i]) if not math.isnan(sign_changes[i]) else float('NaN') for i in
                            range(0, len(results))]
-    errors_AGLR_step = [(results[i] - AGLR_step[i]) if not math.isnan(AGLR_step[i]) else None for i in
+    errors_AGLR_step = [(AGLR_step[i] - results[i]) if not math.isnan(AGLR_step[i]) else float('NaN') for i in
                         range(0, len(results))]
-    errors_two_step = [(results[i] - two_step[i]) if not math.isnan(two_step[i]) else None for i in
+    errors_two_step = [(two_step[i] - results[i]) if not math.isnan(two_step[i]) else float('NaN') for i in
                        range(0, len(results))]
+    test_list_aglr=[errors_AGLR_step[i] if errors_AGLR_step[i]!=errors_two_step[i] else None for i in range(0,len(errors_AGLR_step))]
+    test_list_aglr = list(filter(None, test_list_aglr))
+    test_list_two_step = [errors_two_step[i] if errors_AGLR_step[i] != errors_two_step[i] else None for i in
+                      range(0, len(errors_AGLR_step))]
+    test_list_two_step = list(filter(None, test_list_two_step))
+    print(test_list_aglr)
+    print(test_list_two_step)
+    print("GROUPS - AGLR_step, two_step diffs")
+    print(stats.kruskal(test_list_aglr, test_list_two_step, nan_policy="omit"))
+    print("GROUPS - sign_changes, AGLR_step, two_step")
+    print(stats.kruskal(errors_sign_changes, errors_AGLR_step, errors_two_step, nan_policy="omit"))
+    print("GROUPS - sign_changes, AGLR_step")
+    print(stats.kruskal(errors_sign_changes, errors_AGLR_step, nan_policy="omit"))
+    print("GROUPS - AGLR_step, two_step")
+    print(stats.kruskal(errors_AGLR_step, errors_two_step, nan_policy="omit"))
+    print("GROUPS - sign_changes, two_step")
+    print(stats.kruskal(errors_sign_changes, errors_two_step, nan_policy="omit"))
+
     print("SIGN CHANGES:")
+    errors_sign_changes = list(map(nan_to_none, errors_sign_changes))
     print("No onset found - {0}".format(errors_sign_changes.count(None)))
     errors_sign_changes = list(filter(None, errors_sign_changes))
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_sign_changes)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_sign_changes))
+    print("VARIANCE: ")
+    print(np.var(errors_sign_changes))
     make_histogram(errors_sign_changes, "sign_changes", False)
     print()
 
     print("AGLR STEP:")
+    errors_AGLR_step = list(map(nan_to_none, errors_AGLR_step))
     print("No onset found - {0}".format(errors_AGLR_step.count(None)))
     errors_AGLR_step = list(filter(None, errors_AGLR_step))
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_AGLR_step)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_AGLR_step))
+    print("VARIANCE: ")
+    print(np.var(errors_AGLR_step))
     make_histogram(errors_AGLR_step, "AGLR_step", False)
     print()
 
     print("TWO STEP:")
+    errors_two_step = list(map(nan_to_none, errors_two_step))
     print("No onset found - {0}".format(errors_two_step.count(None)))
     errors_two_step = list(filter(None, errors_two_step))
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_two_step)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_two_step))
+    print("VARIANCE: ")
+    print(np.var(errors_two_step))
     make_histogram(errors_two_step, "two_step", False)
     print()
 
     print("SIGN CHANGES (outlier = {0}):".format(outlier))
+    outliers_size_sign_changes=len(errors_sign_changes)
     errors_sign_changes = [item for item in errors_sign_changes if abs(item) <= outlier]
+    outliers_size_sign_changes -= len(errors_sign_changes)
+    print(outliers_size_sign_changes)
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_sign_changes)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_sign_changes))
+    print("VARIANCE: ")
+    print(np.var(errors_sign_changes))
     make_histogram(errors_sign_changes, "sign_changes_outlier", True)
     print()
 
     print("AGLR STEP (outlier = {0}):".format(outlier))
+    outliers_size_aglr_step = len(errors_AGLR_step)
     errors_AGLR_step = [item for item in errors_AGLR_step if abs(item) <= outlier]
+    outliers_size_aglr_step -= len(errors_AGLR_step)
+    print(outliers_size_aglr_step)
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_AGLR_step)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_AGLR_step))
+    print("VARIANCE: ")
+    print(np.var(errors_AGLR_step))
     make_histogram(errors_AGLR_step, "AGLR_step_outlier", True)
     print()
 
     print("TWO STEP (outlier = {0}):".format(outlier))
+    outliers_size_two_step = len(errors_two_step)
     errors_two_step = [item for item in errors_two_step if abs(item) <= outlier]
+    outliers_size_two_step -= len(errors_two_step)
+    print(outliers_size_two_step)
+    print("ABSOLUTE ERROR MEAN: ")
     print(np.mean(np.abs(errors_two_step)))
+    print("ERROR MEAN: ")
     print(np.mean(errors_two_step))
+    print("VARIANCE: ")
+    print(np.var(errors_two_step))
     make_histogram(errors_two_step, "two_step_outlier", True)
 
 
 def prepare_results(database, data_range, filename):
-    def prepare_single_result(database, data_range, sign_changes, AGLR_step, two_step, make_plots=False):
+    def prepare_single_result(database, data_range, sign_changes, AGLR_step, two_step, make_plots=True):
         filenames = []
         results = []
         onsets_sign_changes = []
@@ -238,8 +295,9 @@ def prepare_results(database, data_range, filename):
                 emg_single_data = emg_data[:, i]
                 result = emg_data[i, 7]
                 if result > 0:
+                    filename = "emg{0}-{1}".format(j, i)
                     try:
-                        onset_sign_changes = sign_changes[0](emg_single_data, *sign_changes[1])[0]
+                        onset_sign_changes = sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
                     except:
                         onset_sign_changes = None
                     if onset_sign_changes is None:
@@ -247,7 +305,10 @@ def prepare_results(database, data_range, filename):
                     onsets_sign_changes.append(onset_sign_changes)
 
                     try:
+                        print("AGLR STEP TIME")
+                        time_before=time.time()
                         onset_AGLR_step = AGLR_step[0](emg_single_data, *AGLR_step[1])
+                        print(time.time()-time_before)
                     except:
                         onset_AGLR_step = None
                     if onset_AGLR_step is None:
@@ -255,25 +316,28 @@ def prepare_results(database, data_range, filename):
                     onsets_AGLR_step.append(onset_AGLR_step)
 
                     try:
+                        print("TWO STEP TIME")
+                        time_before = time.time()
                         onset_two_step = two_step[0](emg_single_data, *two_step[1])
+                        print(time.time() - time_before)
                     except:
                         onset_two_step = None
                     if onset_two_step is None:
                         two_step_no_result_count += 1
                     onsets_two_step.append(onset_two_step)
 
-                    print("SHOULD BE {0}".format(result))
-                    print(onset_sign_changes)
-                    print(onset_AGLR_step)
-                    print(onset_two_step)
+                    # print("SHOULD BE {0}".format(result))
+                    # print(onset_sign_changes)
+                    # print(onset_AGLR_step)
+                    # print(onset_two_step)
                     results.append(result)
-                    filename = "emg{0}-{1}".format(j, i)
+
                     filenames.append(filename)
                     if make_plots:
                         make_plot(emg_single_data, emg_data[:, 6], filename, result,
-                                  onset_sign_changes if onset_sign_changes is not None else -1,
-                                  onset_AGLR_step if onset_AGLR_step is not None else -1,
-                                  onset_two_step if onset_two_step is not None else -1)
+                                  onset_sign_changes,
+                                  onset_AGLR_step,
+                                  onset_two_step)
 
         sign_changes_errors = [(results[i] - onsets_sign_changes[i]) if onsets_sign_changes[i] is not None else None for
                                i in range(0, len(results))]
@@ -309,9 +373,10 @@ def prepare_results(database, data_range, filename):
         }
         return (filenames, results, sign_changes_result, AGLR_step_result, two_step_result)
 
-    results = prepare_single_result(database, data_range, (onset_sign_changes, (117, 1, 0.007954)),
-                                    (onset_AGLRstep, (200, 259, 239)),
-                                    (onset_two_step_alg, (290, 1, 0.01, 225, 50, 169)))
+    #{'h': 288, 'W': 69, 'M': 210}
+    results = prepare_single_result(database, data_range, (onset_sign_changes, (120, 1, 0.00724023569)),
+                                    (onset_AGLRstep, (241, 298, 239)),
+                                    (onset_two_step_alg, (120, 1, 0.00724023569, 254, 10, 198)), make_plots=True)
 
     with open(filename, 'w', newline="") as result_file:
         wr = csv.writer(result_file, dialect='excel', delimiter=';')
@@ -363,31 +428,41 @@ def make_plot(emg_data, torque_data, filename, expected, found_onset_sign_change
     fig, axs = plt.subplots(2)
     plt.style.use('seaborn-whitegrid')
     axs[0].plot(emg_data, linewidth=1)
+    axs[0].set_xlim([0, len(emg_data)])
     axs[0].axhline(y=0, color='black', linestyle='-', linewidth=1)
-    axs[0].set_title("EMG Signal")
-    axs[0].set_ylabel("EMG = [mV]")
-    axs[0].set_xlabel("t = [ms]")
+    axs[0].set_title("EMG Signal", fontsize=18)
+    axs[0].set_ylabel("EMG = [mV]", fontsize=16)
+    axs[0].set_xlabel("t = [ms]", fontsize=16)
     axs[1].plot(torque_data, linewidth=1, color="red")
-    axs[1].set_title("Torque data")
-    axs[1].set_ylabel("Torque = [Nm]")
-    axs[1].set_xlabel("t = [ms]")
+    axs[1].set_xlim([0, len(torque_data)])
+    axs[1].set_ylim([0, max(torque_data)+10])
+    axs[1].set_title("Torque data", fontsize=18)
+    axs[1].set_ylabel("Torque = [Nm]", fontsize=16)
+    axs[1].set_xlabel("t = [ms]", fontsize=16)
     axs[0].axvline(x=expected, color='tab:green', alpha=0.5, linewidth=2,
                    label="real onset = {0}".format(round(expected, 2)))
-    axs[0].plot(found_onset_two_step, 0, 's', color='magenta', alpha=0.75, markersize=7,
+    if found_onset_two_step is not None:
+        axs[0].plot(found_onset_two_step, 0, 's', color='magenta', alpha=0.75, markersize=7,
                 label="two_step result = {0}".format(found_onset_two_step))
-    axs[0].plot(found_onset_AGLR_step, 0, '^', color='yellow', alpha=0.85, markersize=8,
+    if found_onset_AGLR_step is not None:
+        axs[0].plot(found_onset_AGLR_step, 0, '^', color='yellow', alpha=0.85, markersize=8,
                 label="AGLR_step result = {0}".format(found_onset_AGLR_step))
-    axs[0].plot(found_onset_sign_changes, 0, 'ro', color='cyan', alpha=0.75, markersize=6,
+    if found_onset_sign_changes is not None:
+        axs[0].plot(found_onset_sign_changes, 0, 'ro', color='cyan', alpha=0.75, markersize=6,
                 label="sign_changes_result = {0}".format(found_onset_sign_changes))
     leg = axs[0].legend(loc='upper left', frameon=1)
     frame = leg.get_frame()
     frame.set_facecolor('lightgrey')
     frame.set_edgecolor('black')
-
     fig = plt.gcf()
-    fig.set_size_inches(30, 10)
+    fig.set_size_inches(24, 12)
     plt.setp(axs, xticks=[i for i in range(0, len(emg_data) + 100, 100)])
-    plt.savefig('./plots/{0}.png'.format(filename))
+    plt.setp(axs[0].get_xticklabels(), rotation=50, fontsize=14)
+    plt.setp(axs[0].get_yticklabels(), fontsize=14)
+    plt.setp(axs[1].get_xticklabels(), rotation=50, fontsize=14)
+    plt.setp(axs[1].get_yticklabels(), fontsize=14)
+    fig.tight_layout(pad=2)
+    plt.savefig('./plots/{0}.svg'.format(filename), format='svg', dpi=300, bbox_inches='tight')
 
 
 def find_optimal_params(data, function, data_range, sign_changes_params=()):

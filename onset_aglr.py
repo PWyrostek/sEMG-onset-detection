@@ -18,11 +18,8 @@ def onset_AGLRstep(data, h, W, M):
     delta = 100
     theta_0 = estimate_theta_0(data, M)
     values = [(count_log_likelihood_ratio_step(data, k - W, k, theta_0), k) for k in range(W, len(data))]
-    if max(values)[0] < h:
-        t_a = max(values)[1]
-    else:
-        values = [item for item in values if item[0] >= h]
-        t_a = values[0][1]
+    values = [item for item in values if item[0] >= h]
+    t_a = values[0][1]
     log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
                            range(W, t_a + 1)]
     return max(log_likelihood_list)[1]

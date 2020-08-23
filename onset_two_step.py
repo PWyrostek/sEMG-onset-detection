@@ -1,5 +1,5 @@
 import numpy as np
-from utilities import estimate_theta_0
+from utilities import estimate_theta_0, make_plot_sign_changes
 
 
 def function_test_sign_changes(data, results, begin, end):
@@ -183,11 +183,11 @@ def onset_AGLRstep_two_step(data, h, W, M, left, right):
 
 def onset_two_step_alg(data, W_1, k_1, d_1, h_2, W_2, M_2):
     left, right = onset_sign_changes(data, W_1, k_1, d_1)  # 200,1,0.01
-    result = onset_AGLRstep_two_step(data, h_2, W_2, M_2, left, right)  # 20,15,20
+    result = onset_AGLRstep_two_step(data, h_2, W_2, M_2, left-100, right)  # 20,15,20
     return result
 
 
-def onset_sign_changes(data, W, k, d):
+def onset_sign_changes(data, W, k, d, print_plot=False, filename=""):
     def find_left_side():
         for i in range(0, len(variability) - W // 4):
             endWindow = 0
@@ -212,6 +212,7 @@ def onset_sign_changes(data, W, k, d):
     signs = [1 if single_data >= 0 else -1 for single_data in data]
     mul = 1.5
     h = (max(np.abs(diff(data[0:int(W * mul)]))) + d) * k
+    data_before_change = data
     data = abs(data)
     variability = []
     for i in range(W // 2, len(data) - W // 2):
@@ -220,6 +221,9 @@ def onset_sign_changes(data, W, k, d):
             if signs[j] == signs[j + 1] and (data[j] - data[j + 1]) > h:
                 points += 1
         variability.append(points)
+    if print_plot:
+        variability_plot_data=([0] * (W//2)) + variability + ([0] * (W//2))
+        make_plot_sign_changes(data_before_change, variability_plot_data, filename)
     if max(variability) == 0:
         return (None, None)
     return (find_left_side(), find_right_side())
