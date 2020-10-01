@@ -8,7 +8,7 @@ def onset_londral(data, W, h, duration):
         count_subsequent = 0
         for m in range(n, n + duration):
             current_FVal = np.var(data[m:m + duration])
-            if current_FVal > (initial_mean + h * initial_std):
+            if current_FVal > (initial_mean ** 2 + h * initial_std):
                 count_subsequent += 1
             else:
                 break

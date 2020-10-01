@@ -163,7 +163,7 @@ def main():
     print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
     print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
     print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 200, 0.05, 80)))
+    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 200, 1.5, 80)))
     print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
 
     # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
