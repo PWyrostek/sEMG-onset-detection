@@ -10,6 +10,7 @@ import neptunecontrib.monitoring.skopt as skopt_utils
 import optuna
 import scipy.io as sio
 import skopt
+import math
 from scipy import stats
 from onset_aglr import *
 from onset_bonato import onset_bonato
@@ -32,39 +33,6 @@ DATA_COLUMN = 0
 
 
 def main():
-    def minimize_depreciated():
-        def my_func(params):
-            h, M = params
-            sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
-                    try:
-                        # sum += abs(onset_AGLRstep(emg_single_data, h, W, M) - emg_data[i, 7])
-                        # sum += abs(onset_sign_changes(emg_single_data, h, 1, M)[0] - emg_data[i, 7])
-                        # sum += abs(onset_two_step_alg(emg_single_data, 290, 1, 0.01, h, W, M)- emg_data[i, 7])
-                        value = onset_sign_changes(emg_single_data, h, 1, M)[0]
-                        result = emg_data[i, 7]
-                        if value is not None and value <= result:
-                            sum += abs(value - result)
-                        else:
-                            sum += 5000 ** 2
-                    except:
-                        sum += 5000 ** 2
-            cost = sum
-            return cost
-
-        neptune.init(
-            api_token='ANONYMOUS',
-            project_qualified_name='shared/showroom')
-
-        neptune.create_experiment('minimal_example')
-        neptune_callback = skopt_utils.NeptuneCallback()
-        bounds = [(100, 400), (0.0025, 0.03)]
-        result = skopt.gp_minimize(my_func, bounds, n_calls=500, acq_optimizer="lbfgs", n_jobs=-1,
-                                   callback=[neptune_callback])
-
     def find_minimizing_params():
         def objective_sign_changes_first_step(trial):
             W = trial.suggest_int('W', 100, 400)
@@ -142,8 +110,7 @@ def main():
             cost = sum
             return cost
 
-        neptune.init(project_qualified_name='pwyrostek/sandbox',
-                     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiZjM0ZTRiNjAtNDAxNy00YjVhLThiY2EtYzQ0YTdkOTNhMzk3In0=")
+        neptune.init(api_token='ANONYMOUS', project_qualified_name='shared/showroom')
         neptune.create_experiment('optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
@@ -157,16 +124,24 @@ def main():
     torque_data = emg_data[:, 6]
     emg_single_data = emg_data[:, DATA_COLUMN]
 
-    result = emg_data[DATA_COLUMN, 7]
-    print("Should be {0}".format(result))
-    print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
-    print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 200, 20)))
-    print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
-    print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
-    print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
-    print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
-    print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 50, 3)))
+    emg_test_data = [mat_data['emg1'][:,0], mat_data['emg4'][:,0], mat_data['emg25'][:,0]]
+    results = [mat_data['emg1'][0,7], mat_data['emg4'][0,7], mat_data['emg25'][0,7]]
+
+    # result = emg_data[DATA_COLUMN, 7]
+    # print("Should be {0}".format(result))
+    # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
+    # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
+    # print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
+    # print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
+    # print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
+    # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
+    # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
+    # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
+
+    for i in range(len(emg_test_data)):
+        print("Should be {0}".format(results[i]))
+        print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_test_data[i], 100, 0.001)))
+        print()
 
     # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
     # create_statistics('after_change.csv')
@@ -485,42 +460,6 @@ def make_plot(emg_data, torque_data, filename, expected, found_onset_sign_change
     plt.setp(axs[1].get_yticklabels(), fontsize=14)
     fig.tight_layout(pad=2)
     plt.savefig('./plots/{0}.svg'.format(filename), format='svg', dpi=300, bbox_inches='tight')
-
-
-def find_optimal_params(data, function, data_range, sign_changes_params=()):
-    # data_range = range(9, 19)
-    diffs_list = []
-    threads = []
-    slices = (list(split(data_range, THREADS_AMOUNT)))
-
-    manager = multiprocessing.Manager()
-    results = manager.list()
-    for i in range(THREADS_AMOUNT):
-        args = (data, results, slices[i][0], slices[i][-1])
-        if function == function_test_AGLRs_after_step:
-            args = args + (sign_changes_params,)
-        t = multiprocessing.Process(target=function, args=args)
-        threads.append(t)
-        t.start()
-
-    for t in threads:
-        t.join()
-
-    for result in results:
-        diffs_list.extend(result)
-
-    diffs_sum = []
-
-    if function == function_test_komi:
-        length = (min([len(diffs_list[i]) for i in range(0, len(diffs_list))]))
-    else:
-        length = len(diffs_list[0])
-
-    for i in range(0, length):
-        diffs_sum.append(
-            (sum(row[i][0] for row in diffs_list), diffs_list[0][i][1]))
-    best_param = (min(diffs_sum)[1])
-    return best_param
 
 
 if __name__ == "__main__":

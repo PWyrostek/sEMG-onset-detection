@@ -1,5 +1,3 @@
-import numpy as np
-from utilities import estimate_theta_0, make_plot_sign_changes
 from onset_aglr import onset_AGLRstep_two_step
 from onset_sign_changes import onset_sign_changes
 

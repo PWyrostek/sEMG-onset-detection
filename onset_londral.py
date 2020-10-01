@@ -5,7 +5,7 @@ def onset_londral(data, W, h, duration):
     def test_function(k):
         first_sum = 0
         second_sum = 0
-        for i in range(k - duration + 1, k):
+        for i in range(k - duration, k):
             first_sum += (data[i] ** 2)
             second_sum += data[i]
         second_sum = (second_sum ** 2) / duration

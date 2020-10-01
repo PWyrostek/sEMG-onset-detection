@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def onset_hidden_factor(data, M, W, h):
+def onset_hidden_factor(data, W, h):
     W_2 = round(W / 2)
     initial_var = np.var(data[0:W_2 * 2 + 1])
 
