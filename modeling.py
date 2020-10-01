@@ -12,7 +12,13 @@ import scipy.io as sio
 import skopt
 from scipy import stats
 from onset_aglr import *
+from onset_bonato import onset_bonato
+from onset_hidden_factor import onset_hidden_factor
 from onset_komi import *
+from onset_londral import onset_londral
+from onset_silva import onset_silva
+from onset_solnik import onset_solnik
+from onset_tkvar import onset_TKVar
 from onset_two_step import *
 import statistics
 
@@ -20,8 +26,8 @@ pp = pprint.PrettyPrinter(indent=4)
 THREADS_AMOUNT = 5
 
 DATABASE_NAME = 'database.mat'
-DATABASE_TABLE = 'emg29'
-DATA_COLUMN = 3
+DATABASE_TABLE = 'emg1'
+DATA_COLUMN = 0
 
 
 def main():
@@ -150,15 +156,27 @@ def main():
     torque_data = emg_data[:, 6]
     emg_single_data = emg_data[:, DATA_COLUMN]
 
-    prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
-    create_statistics('after_change.csv')
+    result = emg_data[DATA_COLUMN, 7]
+    print("Should be {0}".format(result))
+    print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
+    print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 200, 20)))
+    print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
+    print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
+    print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
+    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 200, 0.05, 80)))
+    print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
+
+    # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
+    # create_statistics('after_change.csv')
     # onset_sign_changes(emg_single_data, 120, 1, 0.00724023569, True, "emg29-3combined")
+
 
 def create_statistics(filename):
     def nan_to_none(x):
         if math.isnan(x):
             return None
         return x
+
     data = []
     with open(filename, newline='') as csvfile:
         reader = csv.reader(csvfile, delimiter=';')
@@ -179,10 +197,11 @@ def create_statistics(filename):
                         range(0, len(results))]
     errors_two_step = [(two_step[i] - results[i]) if not math.isnan(two_step[i]) else float('NaN') for i in
                        range(0, len(results))]
-    test_list_aglr=[errors_AGLR_step[i] if errors_AGLR_step[i]!=errors_two_step[i] else None for i in range(0,len(errors_AGLR_step))]
+    test_list_aglr = [errors_AGLR_step[i] if errors_AGLR_step[i] != errors_two_step[i] else None for i in
+                      range(0, len(errors_AGLR_step))]
     test_list_aglr = list(filter(None, test_list_aglr))
     test_list_two_step = [errors_two_step[i] if errors_AGLR_step[i] != errors_two_step[i] else None for i in
-                      range(0, len(errors_AGLR_step))]
+                          range(0, len(errors_AGLR_step))]
     test_list_two_step = list(filter(None, test_list_two_step))
     print(test_list_aglr)
     print(test_list_two_step)
@@ -237,7 +256,7 @@ def create_statistics(filename):
     print()
 
     print("SIGN CHANGES (outlier = {0}):".format(outlier))
-    outliers_size_sign_changes=len(errors_sign_changes)
+    outliers_size_sign_changes = len(errors_sign_changes)
     errors_sign_changes = [item for item in errors_sign_changes if abs(item) <= outlier]
     outliers_size_sign_changes -= len(errors_sign_changes)
     print(outliers_size_sign_changes)
@@ -297,7 +316,8 @@ def prepare_results(database, data_range, filename):
                 if result > 0:
                     filename = "emg{0}-{1}".format(j, i)
                     try:
-                        onset_sign_changes = sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
+                        onset_sign_changes = \
+                        sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
                     except:
                         onset_sign_changes = None
                     if onset_sign_changes is None:
@@ -306,9 +326,9 @@ def prepare_results(database, data_range, filename):
 
                     try:
                         print("AGLR STEP TIME")
-                        time_before=time.time()
+                        time_before = time.time()
                         onset_AGLR_step = AGLR_step[0](emg_single_data, *AGLR_step[1])
-                        print(time.time()-time_before)
+                        print(time.time() - time_before)
                     except:
                         onset_AGLR_step = None
                     if onset_AGLR_step is None:
@@ -373,7 +393,7 @@ def prepare_results(database, data_range, filename):
         }
         return (filenames, results, sign_changes_result, AGLR_step_result, two_step_result)
 
-    #{'h': 288, 'W': 69, 'M': 210}
+    # {'h': 288, 'W': 69, 'M': 210}
     results = prepare_single_result(database, data_range, (onset_sign_changes, (120, 1, 0.00724023569)),
                                     (onset_AGLRstep, (241, 298, 239)),
                                     (onset_two_step_alg, (120, 1, 0.00724023569, 254, 10, 198)), make_plots=True)
@@ -435,7 +455,7 @@ def make_plot(emg_data, torque_data, filename, expected, found_onset_sign_change
     axs[0].set_xlabel("t = [ms]", fontsize=16)
     axs[1].plot(torque_data, linewidth=1, color="red")
     axs[1].set_xlim([0, len(torque_data)])
-    axs[1].set_ylim([0, max(torque_data)+10])
+    axs[1].set_ylim([0, max(torque_data) + 10])
     axs[1].set_title("Torque data", fontsize=18)
     axs[1].set_ylabel("Torque = [Nm]", fontsize=16)
     axs[1].set_xlabel("t = [ms]", fontsize=16)
@@ -443,13 +463,13 @@ def make_plot(emg_data, torque_data, filename, expected, found_onset_sign_change
                    label="real onset = {0}".format(round(expected, 2)))
     if found_onset_two_step is not None:
         axs[0].plot(found_onset_two_step, 0, 's', color='magenta', alpha=0.75, markersize=7,
-                label="two_step result = {0}".format(found_onset_two_step))
+                    label="two_step result = {0}".format(found_onset_two_step))
     if found_onset_AGLR_step is not None:
         axs[0].plot(found_onset_AGLR_step, 0, '^', color='yellow', alpha=0.85, markersize=8,
-                label="AGLR_step result = {0}".format(found_onset_AGLR_step))
+                    label="AGLR_step result = {0}".format(found_onset_AGLR_step))
     if found_onset_sign_changes is not None:
         axs[0].plot(found_onset_sign_changes, 0, 'ro', color='cyan', alpha=0.75, markersize=6,
-                label="sign_changes_result = {0}".format(found_onset_sign_changes))
+                    label="sign_changes_result = {0}".format(found_onset_sign_changes))
     leg = axs[0].legend(loc='upper left', frameon=1)
     frame = leg.get_frame()
     frame.set_facecolor('lightgrey')
