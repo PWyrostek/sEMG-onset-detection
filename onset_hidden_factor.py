@@ -12,14 +12,7 @@ def onset_hidden_factor(data, M, W, h):
     high_var = max(variances)
     threshold_var = initial_var + (high_var - initial_var) * h
 
-    possible_result = 0
     for n in range(W_2, len(data) - W_2):
-        current_var = variances[n]
-        if current_var > threshold_var:
-            possible_result = n
-            break
-
-    for n in range(possible_result - M, possible_result + M):
         current_var = variances[n]
         if current_var > threshold_var:
             return n

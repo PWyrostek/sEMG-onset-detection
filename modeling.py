@@ -14,6 +14,7 @@ from scipy import stats
 from onset_aglr import *
 from onset_bonato import onset_bonato
 from onset_hidden_factor import onset_hidden_factor
+from onset_hodges_bui import onset_hodges_bui
 from onset_komi import *
 from onset_londral import onset_londral
 from onset_silva import onset_silva
@@ -163,8 +164,9 @@ def main():
     print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
     print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
     print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 200, 1.5, 80)))
+    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
     print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
+    print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 50, 3)))
 
     # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
     # create_statistics('after_change.csv')
@@ -317,7 +319,7 @@ def prepare_results(database, data_range, filename):
                     filename = "emg{0}-{1}".format(j, i)
                     try:
                         onset_sign_changes = \
-                        sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
+                            sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
                     except:
                         onset_sign_changes = None
                     if onset_sign_changes is None:
