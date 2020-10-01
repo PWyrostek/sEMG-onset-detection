@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def onset_bonato(data, W, h, duration, num_of_all_active, pool_size):
+def onset_bonato(data, h, duration, num_of_all_active, pool_size):
     def test_function(k):
         result = (data[k - 1] ** 2 + data[k] ** 2) / var
         return result
 
-    var = np.var(data[0:W])
+    var = np.var(data[0:pool_size])
     for n in range(2, len(data) - pool_size, 2):
         count_all = 0
         count_subsequent = 0
