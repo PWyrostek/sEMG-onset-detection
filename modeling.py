@@ -24,6 +24,8 @@ from onset_tkvar import onset_TKVar
 from onset_two_step import *
 from credentials import project_name, personal_token
 import statistics
+from enum import Enum
+
 
 pp = pprint.PrettyPrinter(indent=4)
 THREADS_AMOUNT = 5
@@ -33,7 +35,40 @@ DATABASE_TABLE = 'emg1'
 DATA_COLUMN = 0
 
 
+class ArgumentSearch:
+    def __init__(self, name, min, max, is_int=True):
+        self.name = name
+        self.min = min
+        self.max = max
+        self.is_int = is_int
+
 def main():
+    def find_minimizing_params_refactor(function, arguments):
+        def objective_function(trial):
+            mapped_arguments = [trial.suggest_int(argument.name, argument.min, argument.max) if argument.is_int else trial.suggest_uniform(argument.name, argument.min, argument.max) for argument in arguments]
+            sum = 0
+            for j in [3, 4, 8, 11, 14, 19, 25]:
+                emg_data = mat_data['emg{0}'.format(j)]
+                for i in range(0, 6):
+                    emg_single_data = emg_data[:, i]
+                    try:
+                        value = function(emg_single_data, *mapped_arguments)
+                        result = emg_data[i, 7]
+                        sum += abs(value - result)
+                    except:
+                        sum += 5000
+            cost = sum
+            return cost
+
+        neptune.init(project_qualified_name=project_name, api_token=personal_token)
+        neptune.create_experiment(name='optuna_test')
+        neptune_callback = opt_utils.NeptuneCallback()
+        study = optuna.create_study(direction='minimize')
+        study.optimize(objective_function, n_trials=100, callbacks=[neptune_callback], n_jobs=6)
+        print(study.best_params)
+        print(study.best_value)
+        print(study.best_trial)
+
     def find_minimizing_params():
         def objective_sign_changes_first_step(trial):
             W = trial.suggest_int('W', 100, 400)
@@ -129,17 +164,18 @@ def main():
     results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
 
     # find_minimizing_params()
+    find_minimizing_params_refactor(onset_hodges_bui, [ArgumentSearch('W', 40, 250, True), ArgumentSearch('h', 0.01, 10, False)])
 
     result = emg_data[DATA_COLUMN, 7]
-    print("Should be {0}".format(result))
-    print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
-    print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
-    print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 7.74, 10, 25, 50)))
-    print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
-    print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
-    print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 100, 0.15)))
-    print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
+    # print("Should be {0}".format(result))
+    # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
+    # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
+    # print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 7.74, 10, 25, 50)))
+    # print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
+    # print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
+    # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
+    # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 100, 0.15)))
+    # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
 
     # for i in range(len(emg_test_data)):
     #     print("Should be {0}".format(results[i]))
