@@ -125,21 +125,21 @@ def main():
     torque_data = emg_data[:, 6]
     emg_single_data = emg_data[:, DATA_COLUMN]
 
-    emg_test_data = [mat_data['emg1'][:,0], mat_data['emg4'][:,0], mat_data['emg25'][:,0]]
-    results = [mat_data['emg1'][0,7], mat_data['emg4'][0,7], mat_data['emg25'][0,7]]
+    emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
+    results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
 
-    find_minimizing_params()
+    # find_minimizing_params()
 
-    # result = emg_data[DATA_COLUMN, 7]
-    # print("Should be {0}".format(result))
-    # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
-    # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
-    # print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 200, 7.74, 10, 25, 50)))
-    # print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
-    # print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
-    # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
-    # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
+    result = emg_data[DATA_COLUMN, 7]
+    print("Should be {0}".format(result))
+    print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
+    print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
+    print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 7.74, 10, 25, 50)))
+    print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
+    print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
+    print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
+    print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 100, 0.15)))
+    print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
 
     # for i in range(len(emg_test_data)):
     #     print("Should be {0}".format(results[i]))

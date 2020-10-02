@@ -13,7 +13,7 @@ def onset_londral(data, W, h, duration):
 
     initial_mean = np.mean(abs(data[0:W]))
     initial_std = np.std(data[0:W])
-    for n in range(W, len(data)):
+    for n in range(0, len(data) - duration):
         count_subsequent = 0
         for m in range(n, n + duration):
             current_FVal = test_function(m)

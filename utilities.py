@@ -32,13 +32,13 @@ def make_plot_sign_changes(emg_data, variability_data, filename):
     plt.savefig('./figures/{0}.svg'.format(filename), format='svg', dpi=300, bbox_inches='tight')
 
 def signal_energy(signal):
-  energy[0] = signal[0]
-  energy[len(signal)] = signal[len(signal)]
+    energy = [0] * len(signal)
+    energy[0] = signal[0]
+    energy[len(signal) - 1] = signal[len(signal) - 1]
+    for n in range(1, len(signal) - 1):
+        energy[n] = signal[n] ** 2 - signal[n - 1] * signal[n + 1]
 
-  for n in range(1, len(signal) - 1):
-    energy[n] = signal[n] ** 2 - signal[n - 1] * signal[n + 1]
-
-  return energy
+    return energy
 
 def estimate_theta_0(data, M):
     sum = 0
