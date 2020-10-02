@@ -24,7 +24,6 @@ from onset_tkvar import onset_TKVar
 from onset_two_step import *
 from credentials import project_name, personal_token
 import statistics
-from enum import Enum
 
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -34,7 +33,6 @@ DATABASE_NAME = 'database.mat'
 DATABASE_TABLE = 'emg1'
 DATA_COLUMN = 0
 
-
 class ArgumentSearch:
     def __init__(self, name, min, max, is_int=True):
         self.name = name
@@ -43,17 +41,32 @@ class ArgumentSearch:
         self.is_int = is_int
 
 def main():
+    def prepare_data():
+        training_database_ids = [3, 4, 8, 11, 14, 19, 25]
+        training_column_ids = [0, 5]
+        training_data = []
+        test_data = []
+        for i in range(1,30):
+            for j in range(0,6):
+                data = mat_data['emg{0}'.format(i)][:, j]
+                result = mat_data['emg{0}'.format(i)][j, 7]
+                if i in training_database_ids and j in training_column_ids:
+                    training_data.append((data, result))
+                else:
+                    test_data.append((data, result))
+        return (training_data, test_data)
+
+
     def find_minimizing_params_refactor(function, arguments):
+        # TODO: handle sign_changes and two_step cases
         def objective_function(trial):
             mapped_arguments = [trial.suggest_int(argument.name, argument.min, argument.max) if argument.is_int else trial.suggest_uniform(argument.name, argument.min, argument.max) for argument in arguments]
             sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
+            for data in training_data:
+                    emg_single_data = data[0]
                     try:
                         value = function(emg_single_data, *mapped_arguments)
-                        result = emg_data[i, 7]
+                        result = data[1]
                         sum += abs(value - result)
                     except:
                         sum += 5000
@@ -159,9 +172,11 @@ def main():
     emg_data = mat_data[DATABASE_TABLE]
     torque_data = emg_data[:, 6]
     emg_single_data = emg_data[:, DATA_COLUMN]
+    training_data, test_data = prepare_data()
 
     emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
     results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
+
 
     # find_minimizing_params()
     find_minimizing_params_refactor(onset_hodges_bui, [ArgumentSearch('W', 40, 250, True), ArgumentSearch('h', 0.01, 10, False)])
