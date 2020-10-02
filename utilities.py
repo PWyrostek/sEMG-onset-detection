@@ -31,6 +31,15 @@ def make_plot_sign_changes(emg_data, variability_data, filename):
     fig.tight_layout(pad=2)
     plt.savefig('./figures/{0}.svg'.format(filename), format='svg', dpi=300, bbox_inches='tight')
 
+def signal_energy(signal):
+  energy[0] = signal[0]
+  energy[len(signal)] = signal[len(signal)]
+
+  for n in range(1, len(signal) - 1):
+    energy[n] = signal[n] ** 2 - signal[n - 1] * signal[n + 1]
+
+  return energy
+
 def estimate_theta_0(data, M):
     sum = 0
     for i in range(0, M):
@@ -44,9 +53,7 @@ def butterworth_filter(data, cutoff_frequency):
     data = signal.filtfilt(b, a, data)
     return data
 
-
 def whitening(data):
-    """TODO: Whitening filter"""
     pca = PCA(whiten=True)
     whitened = pca.fit_transform(data.reshape(-1, 1))
     return whitened
