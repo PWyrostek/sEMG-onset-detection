@@ -22,6 +22,7 @@ from onset_silva import onset_silva
 from onset_solnik import onset_solnik
 from onset_tkvar import onset_TKVar
 from onset_two_step import *
+from credentials import project_name, personal_token
 import statistics
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -36,7 +37,7 @@ def main():
     def find_minimizing_params():
         def objective_sign_changes_first_step(trial):
             W = trial.suggest_int('W', 100, 400)
-            k = trial.suggest_int('k', 1, 3)
+            k = trial.suggest_int('k', 1, 10)
             d = trial.suggest_uniform('d', 0.0025, 0.03)
             sum = 0
             for j in [3, 4, 8, 11, 14, 19, 25]:
@@ -57,8 +58,8 @@ def main():
             return cost
 
         def objective_sign_changes_standalone(trial):
-            W = trial.suggest_int('W', 50, 600)
-            k = trial.suggest_int('k', 1, 3)
+            W = trial.suggest_int('W', 50, 400)
+            k = trial.suggest_int('k', 1, 10)
             d = trial.suggest_uniform('d', 0.0025, 0.03)
             sum = 0
             for j in [3, 4, 8, 11, 14, 19, 25]:
@@ -110,11 +111,11 @@ def main():
             cost = sum
             return cost
 
-        neptune.init(api_token='ANONYMOUS', project_qualified_name='shared/showroom')
-        neptune.create_experiment('optuna_test')
+        neptune.init(project_qualified_name=project_name, api_token=personal_token)
+        neptune.create_experiment(name='optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
-        study.optimize(objective_AGLRs_second_step, n_trials=500, callbacks=[neptune_callback], n_jobs=1)
+        study.optimize(objective_AGLRs_second_step, n_trials=2, callbacks=[neptune_callback], n_jobs=6)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
@@ -127,6 +128,8 @@ def main():
     emg_test_data = [mat_data['emg1'][:,0], mat_data['emg4'][:,0], mat_data['emg25'][:,0]]
     results = [mat_data['emg1'][0,7], mat_data['emg4'][0,7], mat_data['emg25'][0,7]]
 
+    find_minimizing_params()
+
     # result = emg_data[DATA_COLUMN, 7]
     # print("Should be {0}".format(result))
     # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
@@ -138,10 +141,10 @@ def main():
     # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 250, 100, 0.15)))
     # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
 
-    for i in range(len(emg_test_data)):
-        print("Should be {0}".format(results[i]))
-        print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_test_data[i], 100, 0.001)))
-        print()
+    # for i in range(len(emg_test_data)):
+    #     print("Should be {0}".format(results[i]))
+    #     print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_test_data[i], 100, 0.001)))
+    #     print()
 
     # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
     # create_statistics('after_change.csv')
