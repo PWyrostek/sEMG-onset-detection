@@ -40,6 +40,21 @@ class ArgumentSearch:
         self.max = max
         self.is_int = is_int
 
+OPTIMIZATION_DATA = {
+    onset_komi: [ArgumentSearch("h", 0.01, 0.3, False)],
+    onset_TKVar: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("g", 1, 50, True)],
+    onset_hodges_bui: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.01, 10, False)],
+    onset_solnik: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.001, 4, False), ArgumentSearch("duration", 10, 50, True)],
+    onset_silva: [ArgumentSearch("W_1", 10, 200, True), ArgumentSearch("W_2", 10, 100, True), ArgumentSearch("h", 0.01, 0.5, False)],
+    onset_londral: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.01, 10, False), ArgumentSearch("duration", 80, 120, True)],
+    onset_hidden_factor: [ArgumentSearch("W", 40, 200, True), ArgumentSearch("h", 0.001, 1, False)],
+    onset_bonato: [ArgumentSearch("h", 1, 20, False), ArgumentSearch("duration", 80, 120, True), ArgumentSearch("num_of_all_active", 20, 150, True), ArgumentSearch("pool_size", 20, 150, True)],
+    onset_sign_changes: [ArgumentSearch("W", 50, 400, True), ArgumentSearch("k", 1, 3, True), ArgumentSearch("d", 0.0025, 0.03, False)],
+    onset_AGLRstep: [ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 20, 250, True), ArgumentSearch("M", 50, 250, True)],
+    "onset_two_step_first_step": [ArgumentSearch("W", 100, 400, True), ArgumentSearch("k", 1, 3, True), ArgumentSearch("d", 0.0025, 0.03, False)],
+    "onset_two_step_second_step": ([ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 10, 100, True), ArgumentSearch("M", 50, 250, True)], (120, 1, 0.00724023569))
+}
+
 def main():
     def prepare_data():
         training_database_ids = [3, 4, 8, 11, 14, 19, 25]
@@ -50,28 +65,40 @@ def main():
             for j in range(0,6):
                 data = mat_data['emg{0}'.format(i)][:, j]
                 result = mat_data['emg{0}'.format(i)][j, 7]
+                torque = mat_data['emg{0}'.format(i)][:, 6]
+                identifier = 'emg{0}-{1}'.format(i,j)
                 if i in training_database_ids and j in training_column_ids:
-                    training_data.append((data, result))
+                    training_data.append((data, result, torque, identifier))
                 else:
-                    test_data.append((data, result))
+                    test_data.append((data, result, torque, identifier))
         return (training_data, test_data)
 
 
     def find_minimizing_params_refactor(function, arguments):
-        # TODO: handle sign_changes and two_step cases
         def objective_function(trial):
             mapped_arguments = [trial.suggest_int(argument.name, argument.min, argument.max) if argument.is_int else trial.suggest_uniform(argument.name, argument.min, argument.max) for argument in arguments]
             sum = 0
             for data in training_data:
                     emg_single_data = data[0]
                     try:
-                        value = function(emg_single_data, *mapped_arguments)
+                        if function == onset_sign_changes:
+                            value = function(emg_single_data, *mapped_arguments)[0]
+                        elif function == onset_two_step_alg:
+                            value = function(emg_single_data, *first_step_args, *mapped_arguments)
+                        else:
+                            value = function(emg_single_data, *mapped_arguments)
                         result = data[1]
                         sum += abs(value - result)
                     except:
                         sum += 5000
             cost = sum
             return cost
+
+        if function == "onset_two_step_first_step":
+            function = onset_sign_changes
+        elif function == "onset_two_step_second_step":
+            function = onset_two_step_alg
+            arguments, first_step_args = arguments
 
         neptune.init(project_qualified_name=project_name, api_token=personal_token)
         neptune.create_experiment(name='optuna_test')
@@ -163,7 +190,7 @@ def main():
         neptune.create_experiment(name='optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
-        study.optimize(objective_AGLRs_second_step, n_trials=2, callbacks=[neptune_callback], n_jobs=6)
+        study.optimize(objective_AGLRs_second_step, n_trials=2, callbacks=[neptune_callback], n_jobs=1)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
@@ -179,9 +206,11 @@ def main():
 
 
     # find_minimizing_params()
-    find_minimizing_params_refactor(onset_hodges_bui, [ArgumentSearch('W', 40, 250, True), ArgumentSearch('h', 0.01, 10, False)])
+    minimzing_function = "onset_two_step_second_step"
+    # find_minimizing_params_refactor(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
     result = emg_data[DATA_COLUMN, 7]
+
     # print("Should be {0}".format(result))
     # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
     # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
@@ -197,7 +226,7 @@ def main():
     #     print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_test_data[i], 100, 0.001)))
     #     print()
 
-    # prepare_results(mat_data, [x for x in range(1, 30) if x not in [3, 4, 8, 11, 14, 19, 25]], 'after_change.csv')
+    # prepare_results(test_data, 'after_change.csv')
     # create_statistics('after_change.csv')
     # onset_sign_changes(emg_single_data, 120, 1, 0.00724023569, True, "emg29-3combined")
 
@@ -328,8 +357,8 @@ def create_statistics(filename):
     make_histogram(errors_two_step, "two_step_outlier", True)
 
 
-def prepare_results(database, data_range, filename):
-    def prepare_single_result(database, data_range, sign_changes, AGLR_step, two_step, make_plots=True):
+def prepare_results(test_data, filename):
+    def prepare_single_result(sign_changes, AGLR_step, two_step, make_plots=True):
         filenames = []
         results = []
         onsets_sign_changes = []
@@ -338,57 +367,55 @@ def prepare_results(database, data_range, filename):
         sign_changes_no_result_count = 0
         AGLR_step_no_result_count = 0
         two_step_no_result_count = 0
-        for j in data_range:
-            emg_data = database["emg{0}".format(j)]
-            print("@@@@@@@@@@@@@@@@ {0}".format(j))
-            for i in range(0, 6):
-                emg_single_data = emg_data[:, i]
-                result = emg_data[i, 7]
-                if result > 0:
-                    filename = "emg{0}-{1}".format(j, i)
-                    try:
-                        onset_sign_changes = \
-                            sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
-                    except:
-                        onset_sign_changes = None
-                    if onset_sign_changes is None:
-                        sign_changes_no_result_count += 1
-                    onsets_sign_changes.append(onset_sign_changes)
+        for data in test_data:
+            emg_single_data = data[0]
+            result = data[1]
+            if result > 0:
+                filename = data[3]
+                try:
+                    onset_sign_changes = \
+                        sign_changes[0](emg_single_data, *sign_changes[1], print_plot=False, filename=filename)[0]
+                except:
+                    onset_sign_changes = None
+                if onset_sign_changes is None:
+                    sign_changes_no_result_count += 1
+                onsets_sign_changes.append(onset_sign_changes)
 
-                    try:
-                        print("AGLR STEP TIME")
-                        time_before = time.time()
-                        onset_AGLR_step = AGLR_step[0](emg_single_data, *AGLR_step[1])
-                        print(time.time() - time_before)
-                    except:
-                        onset_AGLR_step = None
-                    if onset_AGLR_step is None:
-                        AGLR_step_no_result_count += 1
-                    onsets_AGLR_step.append(onset_AGLR_step)
+                try:
+                    print("AGLR STEP TIME")
+                    time_before = time.time()
+                    onset_AGLR_step = AGLR_step[0](emg_single_data, *AGLR_step[1])
+                    print(time.time() - time_before)
+                except:
+                    onset_AGLR_step = None
+                if onset_AGLR_step is None:
+                    AGLR_step_no_result_count += 1
+                onsets_AGLR_step.append(onset_AGLR_step)
 
-                    try:
-                        print("TWO STEP TIME")
-                        time_before = time.time()
-                        onset_two_step = two_step[0](emg_single_data, *two_step[1])
-                        print(time.time() - time_before)
-                    except:
-                        onset_two_step = None
-                    if onset_two_step is None:
-                        two_step_no_result_count += 1
-                    onsets_two_step.append(onset_two_step)
+                try:
+                    print("TWO STEP TIME")
+                    time_before = time.time()
+                    onset_two_step = two_step[0](emg_single_data, *two_step[1])
+                    print(time.time() - time_before)
+                except:
+                    onset_two_step = None
+                if onset_two_step is None:
+                    two_step_no_result_count += 1
+                onsets_two_step.append(onset_two_step)
 
-                    # print("SHOULD BE {0}".format(result))
-                    # print(onset_sign_changes)
-                    # print(onset_AGLR_step)
-                    # print(onset_two_step)
-                    results.append(result)
+                # print("SHOULD BE {0}".format(result))
+                # print(onset_sign_changes)
+                # print(onset_AGLR_step)
+                # print(onset_two_step)
+                results.append(result)
 
-                    filenames.append(filename)
-                    if make_plots:
-                        make_plot(emg_single_data, emg_data[:, 6], filename, result,
-                                  onset_sign_changes,
-                                  onset_AGLR_step,
-                                  onset_two_step)
+                filenames.append(filename)
+                if make_plots:
+                    make_plot(emg_single_data, data[2], filename, result,
+                              onset_sign_changes,
+                              onset_AGLR_step,
+                              onset_two_step)
+
 
         sign_changes_errors = [(results[i] - onsets_sign_changes[i]) if onsets_sign_changes[i] is not None else None for
                                i in range(0, len(results))]
@@ -425,7 +452,7 @@ def prepare_results(database, data_range, filename):
         return (filenames, results, sign_changes_result, AGLR_step_result, two_step_result)
 
     # {'h': 288, 'W': 69, 'M': 210}
-    results = prepare_single_result(database, data_range, (onset_sign_changes, (120, 1, 0.00724023569)),
+    results = prepare_single_result((onset_sign_changes, (120, 1, 0.00724023569)),
                                     (onset_AGLRstep, (241, 298, 239)),
                                     (onset_two_step_alg, (120, 1, 0.00724023569, 254, 10, 198)), make_plots=True)
 
