@@ -97,6 +97,8 @@ def main():
                     sum += abs(value - result)
                     if function == "onset_two_step_first_step" and (value is None or value > result):
                         sum += 5000
+                    if value == -1:
+                        sum += 5000
                 except:
                     sum += 5000
             cost = sum
