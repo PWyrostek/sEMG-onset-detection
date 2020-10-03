@@ -112,10 +112,11 @@ def main():
         neptune.create_experiment(name='optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
-        study.optimize(objective_function, n_trials=100, callbacks=[neptune_callback], n_jobs=6)
+        study.optimize(objective_function, n_trials=20, callbacks=[neptune_callback], n_jobs=6)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
+        return study.best_params
 
     mat_data = sio.loadmat(DATABASE_NAME)
     emg_data = mat_data[DATABASE_TABLE]
@@ -126,10 +127,15 @@ def main():
     emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
     results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
 
-    minimzing_function = "onset_two_step_first_step"
-    find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
+    # minimzing_function = "onset_two_step_first_step"
+    # find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
-    result = emg_data[DATA_COLUMN, 7]
+    optimization_results = {}
+    for key in OPTIMIZATION_DATA:
+        key_name = key if isinstance(key, str) else key.__name__
+        optimization_results[key_name] = find_minimizing_params(key, OPTIMIZATION_DATA[key])
+
+    print(optimization_results)
 
     # print("Should be {0}".format(result))
     # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
