@@ -25,7 +25,6 @@ from onset_two_step import *
 from credentials import project_name, personal_token
 import statistics
 
-
 pp = pprint.PrettyPrinter(indent=4)
 THREADS_AMOUNT = 5
 
@@ -33,12 +32,14 @@ DATABASE_NAME = 'database.mat'
 DATABASE_TABLE = 'emg1'
 DATA_COLUMN = 0
 
+
 class ArgumentSearch:
     def __init__(self, name, min, max, is_int=True):
         self.name = name
         self.min = min
         self.max = max
         self.is_int = is_int
+
 
 OPTIMIZATION_DATA = {
     onset_komi: [ArgumentSearch("h", 0.01, 0.3, False)],
@@ -55,18 +56,19 @@ OPTIMIZATION_DATA = {
     "onset_two_step_second_step": ([ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 10, 100, True), ArgumentSearch("M", 50, 250, True)], (120, 1, 0.00724023569))
 }
 
+
 def main():
     def prepare_data():
         training_database_ids = [3, 4, 8, 11, 14, 19, 25]
         training_column_ids = [0, 5]
         training_data = []
         test_data = []
-        for i in range(1,30):
-            for j in range(0,6):
+        for i in range(1, 30):
+            for j in range(0, 6):
                 data = mat_data['emg{0}'.format(i)][:, j]
                 result = mat_data['emg{0}'.format(i)][j, 7]
                 torque = mat_data['emg{0}'.format(i)][:, 6]
-                identifier = 'emg{0}-{1}'.format(i,j)
+                identifier = 'emg{0}-{1}'.format(i, j)
                 if i in training_database_ids and j in training_column_ids:
                     training_data.append((data, result, torque, identifier))
                 else:
@@ -74,29 +76,33 @@ def main():
         return (training_data, test_data)
 
 
-    def find_minimizing_params_refactor(function, arguments):
+    def find_minimizing_params(function, arguments):
         def objective_function(trial):
-            mapped_arguments = [trial.suggest_int(argument.name, argument.min, argument.max) if argument.is_int else trial.suggest_uniform(argument.name, argument.min, argument.max) for argument in arguments]
+            mapped_arguments = [trial.suggest_int(argument.name, argument.min,
+                                                  argument.max) if argument.is_int else trial.suggest_uniform(
+                argument.name, argument.min, argument.max) for argument in arguments]
             sum = 0
             for data in training_data:
-                    emg_single_data = data[0]
-                    try:
-                        if function == onset_sign_changes:
-                            value = function(emg_single_data, *mapped_arguments)[0]
-                        elif function == onset_two_step_alg:
-                            value = function(emg_single_data, *first_step_args, *mapped_arguments)
-                        else:
-                            value = function(emg_single_data, *mapped_arguments)
-                        result = data[1]
-                        sum += abs(value - result)
-                    except:
+                emg_single_data = data[0]
+                try:
+                    result = data[1]
+
+                    if function == onset_sign_changes or function == "onset_two_step_first_step":
+                        value = function(emg_single_data, *mapped_arguments)[0]
+                    elif function == onset_two_step_alg:
+                        value = function(emg_single_data, *first_step_args, *mapped_arguments)
+                    else:
+                        value = function(emg_single_data, *mapped_arguments)
+
+                    sum += abs(value - result)
+                    if function == "onset_two_step_first_step" and (value is None or value > result):
                         sum += 5000
+                except:
+                    sum += 5000
             cost = sum
             return cost
 
-        if function == "onset_two_step_first_step":
-            function = onset_sign_changes
-        elif function == "onset_two_step_second_step":
+        if function == "onset_two_step_second_step":
             function = onset_two_step_alg
             arguments, first_step_args = arguments
 
@@ -105,92 +111,6 @@ def main():
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
         study.optimize(objective_function, n_trials=100, callbacks=[neptune_callback], n_jobs=6)
-        print(study.best_params)
-        print(study.best_value)
-        print(study.best_trial)
-
-    def find_minimizing_params():
-        def objective_sign_changes_first_step(trial):
-            W = trial.suggest_int('W', 100, 400)
-            k = trial.suggest_int('k', 1, 10)
-            d = trial.suggest_uniform('d', 0.0025, 0.03)
-            sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
-                    try:
-                        value = onset_sign_changes(emg_single_data, W, k, d)[0]
-                        result = emg_data[i, 7]
-                        if value is not None and value <= result:
-                            sum += abs(value - result)
-                        else:
-                            sum += abs(value - result)
-                            sum += 5000 ** 2
-                    except:
-                        sum += 2 * (5000 ** 2)
-            cost = sum
-            return cost
-
-        def objective_sign_changes_standalone(trial):
-            W = trial.suggest_int('W', 50, 400)
-            k = trial.suggest_int('k', 1, 10)
-            d = trial.suggest_uniform('d', 0.0025, 0.03)
-            sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
-                    try:
-                        value = onset_sign_changes(emg_single_data, W, k, d)[0]
-                        result = emg_data[i, 7]
-                        sum += abs(value - result)
-                    except:
-                        sum += 5000 ** 2
-            cost = sum
-            return cost
-
-        def objective_AGLRs_standalone(trial):
-            h = trial.suggest_int('h', 1, 300)
-            W = trial.suggest_int('W', 1, 300)
-            M = trial.suggest_int('M', 50, 250)
-            sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
-                    try:
-                        value = onset_AGLRstep(emg_single_data, h, W, M)
-                        result = emg_data[i, 7]
-                        sum += abs(value - result)
-                    except:
-                        sum += 5000 ** 2
-            cost = sum
-            return cost
-
-        def objective_AGLRs_second_step(trial):
-            h = trial.suggest_int('h', 1, 300)
-            W = trial.suggest_int('W', 10, 100)
-            M = trial.suggest_int('M', 50, 250)
-            sum = 0
-            for j in [3, 4, 8, 11, 14, 19, 25]:
-                emg_data = mat_data['emg{0}'.format(j)]
-                for i in range(0, 6):
-                    emg_single_data = emg_data[:, i]
-                    try:
-                        value = onset_two_step_alg(emg_single_data, 120, 1, 0.00724023569, h, W, M)
-                        result = emg_data[i, 7]
-                        sum += abs(value - result)
-                    except:
-                        sum += 5000 ** 2
-            cost = sum
-            return cost
-
-        neptune.init(project_qualified_name=project_name, api_token=personal_token)
-        neptune.create_experiment(name='optuna_test')
-        neptune_callback = opt_utils.NeptuneCallback()
-        study = optuna.create_study(direction='minimize')
-        study.optimize(objective_AGLRs_second_step, n_trials=2, callbacks=[neptune_callback], n_jobs=1)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
@@ -204,10 +124,8 @@ def main():
     emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
     results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
 
-
-    # find_minimizing_params()
-    minimzing_function = "onset_two_step_second_step"
-    # find_minimizing_params_refactor(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
+    minimzing_function = onset_komi
+    find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
     result = emg_data[DATA_COLUMN, 7]
 
@@ -220,11 +138,6 @@ def main():
     # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
     # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 100, 0.15)))
     # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
-
-    # for i in range(len(emg_test_data)):
-    #     print("Should be {0}".format(results[i]))
-    #     print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_test_data[i], 100, 0.001)))
-    #     print()
 
     # prepare_results(test_data, 'after_change.csv')
     # create_statistics('after_change.csv')
@@ -415,7 +328,6 @@ def prepare_results(test_data, filename):
                               onset_sign_changes,
                               onset_AGLR_step,
                               onset_two_step)
-
 
         sign_changes_errors = [(results[i] - onsets_sign_changes[i]) if onsets_sign_changes[i] is not None else None for
                                i in range(0, len(results))]
