@@ -88,7 +88,7 @@ def main():
                     result = data[1]
 
                     if function == onset_sign_changes or function == "onset_two_step_first_step":
-                        value = function(emg_single_data, *mapped_arguments)[0]
+                        value = onset_sign_changes(emg_single_data, *mapped_arguments)[0]
                     elif function == onset_two_step_alg:
                         value = function(emg_single_data, *first_step_args, *mapped_arguments)
                     else:
@@ -124,7 +124,7 @@ def main():
     emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
     results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
 
-    minimzing_function = onset_komi
+    minimzing_function = "onset_two_step_first_step"
     find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
     result = emg_data[DATA_COLUMN, 7]
