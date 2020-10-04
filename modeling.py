@@ -88,14 +88,14 @@ def main():
                     result = data[1]
 
                     if function == onset_sign_changes or function == "onset_two_step_first_step":
-                        value = onset_sign_changes(emg_single_data, *mapped_arguments)[0]
+                        value, right_side = onset_sign_changes(emg_single_data, *mapped_arguments)
                     elif function == onset_two_step_alg:
                         value = function(emg_single_data, *first_step_args, *mapped_arguments)
                     else:
                         value = function(emg_single_data, *mapped_arguments)
 
                     sum += abs(value - result)
-                    if function == "onset_two_step_first_step" and (value is None or value > result):
+                    if function == "onset_two_step_first_step" and (value is None or value > result or right_side < result):
                         sum += 5000
                     if value == -1:
                         sum += 5000
@@ -124,9 +124,6 @@ def main():
     emg_single_data = emg_data[:, DATA_COLUMN]
     training_data, test_data = prepare_data()
 
-    emg_test_data = [mat_data['emg1'][:, 0], mat_data['emg4'][:, 0], mat_data['emg25'][:, 0]]
-    results = [mat_data['emg1'][0, 7], mat_data['emg4'][0, 7], mat_data['emg25'][0, 7]]
-
     # minimzing_function = "onset_two_step_first_step"
     # find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
@@ -137,7 +134,10 @@ def main():
 
     print(optimization_results)
 
+    # result = emg_data[DATA_COLUMN, 7]
     # print("Should be {0}".format(result))
+    # print(onset_sign_changes(emg_single_data,200, 1, 0.013844505139074995))
+    # print(onset_two_step_alg(emg_single_data, 399, 1, 0.013844505139074995, 253, 10, 59))
     # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
     # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
     # print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 7.74, 10, 25, 50)))
