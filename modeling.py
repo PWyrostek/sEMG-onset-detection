@@ -112,7 +112,7 @@ def main():
         neptune.create_experiment(name='optuna_test')
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
-        study.optimize(objective_function, n_trials=20, callbacks=[neptune_callback], n_jobs=6)
+        study.optimize(objective_function, n_trials=100, callbacks=[neptune_callback], n_jobs=6)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
@@ -143,7 +143,7 @@ def main():
     # print("ONSET BONATO {0}".format(onset_bonato(emg_single_data, 7.74, 10, 25, 50)))
     # print("ONSET SOLNIK {0}".format(onset_solnik(emg_single_data, 100, 0.03, 10)))
     # print("ONSET SILVA {0}".format(onset_silva(emg_single_data, 40, 80, 0.02)))
-    # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 100, 1, 10)))
+    # print("ONSET LONDRAL {0}".format(onset_londral(emg_single_data, 117, 0.07780019392534165, 120)))
     # print("ONSET HIDDEN FACTOR {0}".format(onset_hidden_factor(emg_single_data, 100, 0.15)))
     # print("ONSET HODGES BUI {0}".format(onset_hodges_bui(emg_single_data, 100, 3)))
 
