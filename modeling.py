@@ -31,7 +31,8 @@ THREADS_AMOUNT = 5
 DATABASE_NAME = 'database.mat'
 DATABASE_TABLE = 'emg1'
 DATA_COLUMN = 0
-
+OPTIMIZATION_TRIALS = 100
+OPTIMIZATION_CONCURRENT_JOBS = 6
 
 class ArgumentSearch:
     def __init__(self, name, min, max, is_int=True):
@@ -53,7 +54,7 @@ OPTIMIZATION_DATA = {
     onset_sign_changes: [ArgumentSearch("W", 50, 400, True), ArgumentSearch("k", 1, 3, True), ArgumentSearch("d", 0.0025, 0.03, False)],
     onset_AGLRstep: [ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 20, 250, True), ArgumentSearch("M", 50, 250, True)],
     "onset_two_step_first_step": [ArgumentSearch("W", 100, 400, True), ArgumentSearch("k", 1, 3, True), ArgumentSearch("d", 0.0025, 0.03, False)],
-    "onset_two_step_second_step": ([ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 10, 100, True), ArgumentSearch("M", 50, 250, True)], (120, 1, 0.00724023569))
+    "onset_two_step_second_step": ([ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 10, 100, True), ArgumentSearch("M", 50, 250, True)])
 }
 
 
@@ -76,7 +77,7 @@ def main():
         return (training_data, test_data)
 
 
-    def find_minimizing_params(function, arguments):
+    def find_minimizing_params(function, arguments, first_step_args=()):
         def objective_function(trial):
             mapped_arguments = [trial.suggest_int(argument.name, argument.min,
                                                   argument.max) if argument.is_int else trial.suggest_uniform(
@@ -106,13 +107,13 @@ def main():
 
         if function == "onset_two_step_second_step":
             function = onset_two_step_alg
-            arguments, first_step_args = arguments
+            arguments = arguments
 
         neptune.init(project_qualified_name=project_name, api_token=personal_token)
-        neptune.create_experiment(name='optuna_test')
+        neptune.create_experiment(name=function if isinstance(function, str) else function.__name__)
         neptune_callback = opt_utils.NeptuneCallback()
         study = optuna.create_study(direction='minimize')
-        study.optimize(objective_function, n_trials=100, callbacks=[neptune_callback], n_jobs=6)
+        study.optimize(objective_function, n_trials=OPTIMIZATION_TRIALS, callbacks=[neptune_callback], n_jobs=OPTIMIZATION_CONCURRENT_JOBS)
         print(study.best_params)
         print(study.best_value)
         print(study.best_trial)
@@ -128,15 +129,18 @@ def main():
     # find_minimizing_params(minimzing_function, OPTIMIZATION_DATA[minimzing_function])
 
     optimization_results = {}
+    first_step_arguments = ()
     for key in OPTIMIZATION_DATA:
         key_name = key if isinstance(key, str) else key.__name__
-        optimization_results[key_name] = find_minimizing_params(key, OPTIMIZATION_DATA[key])
+        optimization_results[key_name] = find_minimizing_params(key, OPTIMIZATION_DATA[key], first_step_arguments if key_name == "onset_two_step_second_step" else ())
+        if key_name == "onset_two_step_first_step":
+            first_step_arguments = (optimization_results[key_name]['W'], optimization_results[key_name]['k'], optimization_results[key_name]['d'])
 
     print(optimization_results)
 
     # result = emg_data[DATA_COLUMN, 7]
     # print("Should be {0}".format(result))
-    # print(onset_sign_changes(emg_single_data,200, 1, 0.013844505139074995))
+    # print(onset_sign_changes(emg_single_data,225, 1, 0.00615049902779793))
     # print(onset_two_step_alg(emg_single_data, 399, 1, 0.013844505139074995, 253, 10, 59))
     # print("ONSET KOMI {0}".format(onset_komi(emg_single_data, 0.03)))
     # print("ONSET TKVar {0}".format(onset_TKVar(emg_single_data, 300, 50)))
