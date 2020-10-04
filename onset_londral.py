@@ -13,10 +13,15 @@ def onset_londral(data, W, h, duration):
 
     initial_mean = np.mean(abs(data[0:W]))
     initial_std = np.std(data[0:W])
+    test_values = []
+    for i in range(0, duration - 1):
+        test_values.append(test_function(i))
+
     for n in range(0, len(data) - duration):
         count_subsequent = 0
+        test_values.append(test_function(n + duration - 1))
         for m in range(n, n + duration):
-            current_FVal = test_function(m)
+            current_FVal = test_values[m]
             if current_FVal > (initial_mean + h * initial_std):
                 count_subsequent += 1
             else:
