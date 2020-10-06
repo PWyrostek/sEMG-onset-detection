@@ -97,8 +97,7 @@ def main():
                         value = function(emg_single_data, *mapped_arguments)
 
                     sum += abs(value - result)
-                    if function == "onset_two_step_first_step" and (
-                            value is None or value > result or right_side < result):
+                    if function == "onset_two_step_first_step" and (value is None or value > result or right_side < result):
                         sum += 5000
                     if value == -1:
                         sum += 5000
@@ -122,13 +121,15 @@ def main():
         print(study.best_trial)
         return study.best_params
 
-    database_table = 'emg1'
-    data_column = 0
     mat_data = sio.loadmat(DATABASE_NAME)
-    emg_data = mat_data[database_table]
-    torque_data = emg_data[:, 6]
-    emg_single_data = emg_data[:, data_column]
     training_data, test_data = prepare_data()
+
+    ## for testing
+    # database_table = 'emg1'
+    # data_column = 0
+    # emg_data = mat_data[database_table]
+    # torque_data = emg_data[:, 6]
+    # emg_single_data = emg_data[:, data_column]
 
     optimization_results = {}
     first_step_arguments = ()
@@ -267,7 +268,7 @@ def prepare_results(test_data, parameters_filename, filename, make_plots=True):
             result_row = [data_name, result] + list(values.values())
             wr.writerow(result_row)
             if make_plots:
-                make_plot(emg_single_data, data[2], data_name, result, values)
+                make_plot(emg_single_data, data[2], data_name, result, values, show_torque=True)
 
 
 def split(list, n):
