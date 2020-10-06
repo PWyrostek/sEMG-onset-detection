@@ -125,11 +125,12 @@ def main():
     training_data, test_data = prepare_data()
 
     ## for testing
-    # database_table = 'emg1'
-    # data_column = 0
+    # database_table = 'emg27'
+    # data_column = 4
     # emg_data = mat_data[database_table]
     # torque_data = emg_data[:, 6]
     # emg_single_data = emg_data[:, data_column]
+    # print(onset_AGLRstep(emg_single_data, 241, 298, 239))
 
     optimization_results = {}
     first_step_arguments = ()

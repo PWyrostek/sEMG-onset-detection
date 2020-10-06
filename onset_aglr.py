@@ -20,7 +20,7 @@ def onset_AGLRstep(data, h, W, M):
     values = [(count_log_likelihood_ratio_step(data, k - W, k, theta_0), k) for k in range(W, len(data))]
     values = [item for item in values if item[0] >= h]
     t_a = values[0][1]
-    log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, t_a + delta, theta_0), j) for j in
+    log_likelihood_list = [(count_log_likelihood_ratio_step(data, j, min(t_a + delta, len(data) - 1), theta_0), j) for j in
                            range(W, t_a + 1)]
     return max(log_likelihood_list)[1]
 
