@@ -46,7 +46,8 @@ class ArgumentSearch:
 
 OPTIMIZATION_DATA = {
     onset_komi: [ArgumentSearch("h", 0.01, 0.3, False)],
-    onset_TKVar: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("g", 1, 50, True)], onset_hodges_bui: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.01, 10, False)],
+    onset_TKVar: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("g", 1, 50, True)],
+    onset_hodges_bui: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.01, 10, False)],
     onset_solnik: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.001, 4, False), ArgumentSearch("duration", 10, 50, True)],
     onset_silva: [ArgumentSearch("W_1", 10, 200, True), ArgumentSearch("W_2", 10, 100, True), ArgumentSearch("h", 0.01, 0.5, False)],
     onset_londral: [ArgumentSearch("W", 40, 250, True), ArgumentSearch("h", 0.01, 10, False), ArgumentSearch("duration", 80, 120, True)],
