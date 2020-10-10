@@ -2,7 +2,7 @@ import numpy as np
 from utilities import make_plot_sign_changes
 
 
-def onset_sign_changes(data, W, k, d, print_plot=False, filename=""):
+def onset_sign_changes(data, W, k=1.3, d=0.00724023569, print_plot=False, filename=""):
     def find_left_side():
         for i in range(0, len(variability) - W // 4):
             endWindow = 0
