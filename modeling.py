@@ -59,11 +59,20 @@ OPTIMIZATION_DATA = {
     "onset_two_step_second_step": ([ArgumentSearch("h", 1, 300, True), ArgumentSearch("W", 10, 100, True), ArgumentSearch("M", 50, 250, True)])
 }
 
+#TODO export CONSTANTS to configuration file:
+OPTIMAL_PARAMETERS = "08-10-2020_015947_parameters'allAlgorithms''podmianaAGLR i 2stage.json"
+RESULTS_FILE = "results.csv"
+
+OPTIMIZATION_STAGE = False
+TESTING_STAGE = True
+STATISTICS_STAGE = True
+PLOTS_STAGE = True
 
 def main():
     def prepare_data():
         training_database_ids = [3, 4, 8, 11, 14, 19, 25]
         training_column_ids = [0, 5]
+        corrupted_signals = [15]
         training_data = []
         test_data = []
         full_data_dict = {}
@@ -75,7 +84,7 @@ def main():
                 identifier = 'emg{0}-{1}'.format(i, j)
                 if i in training_database_ids and j in training_column_ids:
                     training_data.append((data, result, torque, identifier))
-                else:
+                elif i not in corrupted_signals:
                     test_data.append((data, result, torque, identifier))
                 full_data_dict[identifier] = (data, result, torque)
         return (training_data, test_data, full_data_dict)
@@ -134,24 +143,27 @@ def main():
     # emg_single_data = emg_data[:, data_column]
     # print(onset_AGLRstep(emg_single_data, 241, 298, 239))
 
-    # optimization_results = {}
-    # first_step_arguments = ()
-    # for key in OPTIMIZATION_DATA:
-    #     key_name = key if isinstance(key, str) else key.__name__
-    #     optimization_results[key_name] = find_minimizing_params(key, OPTIMIZATION_DATA[key],
-    #                                                             first_step_arguments if key_name == "onset_two_step_second_step" else ())
-    #     if key_name == "onset_two_step_first_step":
-    #         first_step_arguments = (optimization_results[key_name]['W'], optimization_results[key_name]['k'],
-    #                                 optimization_results[key_name]['d'])
-    #
-    # print(optimization_results)
-    # current_date_time = datetime.now().strftime("%d-%m-%Y_%H%M%S")
-    # with open("{0}_parameters.json".format(current_date_time), 'w') as outfile:
-    #     json.dump(optimization_results, outfile)
+    if OPTIMIZATION_STAGE:
+        optimization_results = {}
+        first_step_arguments = ()
+        for key in OPTIMIZATION_DATA:
+            key_name = key if isinstance(key, str) else key.__name__
+            optimization_results[key_name] = find_minimizing_params(key, OPTIMIZATION_DATA[key],
+                                                                    first_step_arguments if key_name == "onset_two_step_second_step" else ())
+            if key_name == "onset_two_step_first_step":
+                first_step_arguments = (optimization_results[key_name]['W'], optimization_results[key_name]['k'],
+                                        optimization_results[key_name]['d'])
 
-    # prepare_results(test_data, "05-10-2020_20000.json", "refactor_test4.csv")
-    make_plots('refactor_test3.csv', full_data_dict, True)
-    # create_statistics('refactor_test3.csv')
+        print(optimization_results)
+        current_date_time = datetime.now().strftime("%d-%m-%Y_%H%M%S")
+        with open("{0}_parameters.json".format(current_date_time), 'w') as outfile:
+            json.dump(optimization_results, outfile)
+    if TESTING_STAGE:
+        prepare_results(test_data, OPTIMAL_PARAMETERS, RESULTS_FILE)
+    if STATISTICS_STAGE:
+        prepare_statistics(RESULTS_FILE)
+    if PLOTS_STAGE:
+        prepare_plots(RESULTS_FILE, full_data_dict, True)
 
 
 def load_data(filename):
@@ -167,7 +179,7 @@ def load_data(filename):
     return data_dict
 
 
-def create_statistics(filename):
+def prepare_statistics(filename):
     def nan_to_none(x):
         if math.isnan(x):
             return None
@@ -241,7 +253,7 @@ def create_statistics(filename):
             print(file=result_file)
 
 
-def make_plots(filename, full_data_dict, show_torque=True):
+def prepare_plots(filename, full_data_dict, show_torque=True):
     onsets_dict = load_data(filename)
     data_names = onsets_dict.pop('data_name')
     results = onsets_dict.pop('real_onset')
