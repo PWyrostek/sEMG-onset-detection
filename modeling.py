@@ -67,6 +67,7 @@ OPTIMIZATION_STAGE = False
 TESTING_STAGE = True
 STATISTICS_STAGE = True
 PLOTS_STAGE = True
+OUTLIER = 500
 
 def main():
     def prepare_data():
@@ -161,9 +162,9 @@ def main():
     if TESTING_STAGE:
         prepare_results(test_data, OPTIMAL_PARAMETERS, RESULTS_FILE)
     if STATISTICS_STAGE:
-        prepare_statistics(RESULTS_FILE)
+        prepare_statistics(RESULTS_FILE, outlier=OUTLIER)
     if PLOTS_STAGE:
-        prepare_plots(RESULTS_FILE, full_data_dict, True)
+        prepare_plots(RESULTS_FILE, full_data_dict, show_torque=True)
 
 
 def load_data(filename):
@@ -179,7 +180,7 @@ def load_data(filename):
     return data_dict
 
 
-def prepare_statistics(filename):
+def prepare_statistics(filename, outlier):
     def nan_to_none(x):
         if math.isnan(x):
             return None
@@ -191,17 +192,16 @@ def prepare_statistics(filename):
     results = [float(item) if item != '' else float('NaN') for item in results]
     data_length = len(results)
     errors_dict = {}
-    outlier = 500
     for key in onsets_dict:
         onsets_dict[key] = [float(item) if item != '' else float('NaN') for item in onsets_dict[key]]
         errors_dict[key] = [(onsets_dict[key][i] - results[i]) if not math.isnan(onsets_dict[key][i]) else float('NaN')
                             for i in range(0, data_length)]
 
     kruskal_tests = []
-    kruskal_titles = [None]
+    table_titles = [None]
     for key in errors_dict:
-        kruskal_titles.append(key)
-    kruskal_tests.append(kruskal_titles)
+        table_titles.append(key)
+    kruskal_tests.append(table_titles)
 
     for key in errors_dict:
         kruskal_values = [key]
@@ -221,36 +221,61 @@ def prepare_statistics(filename):
         for row in kruskal_tests:
             wr.writerow(row)
 
-    statistics_filename = filename_no_ext + " _statistics.txt"
+
+    statistics_rows = {
+        'error_mean': [],
+        'abs_error_mean': [],
+        'variance': [],
+        'no_onset_count': []
+    }
+
+    outlier_statistics_rows = {
+        'error_mean': [],
+        'abs_error_mean': [],
+        'variance': [],
+        'dropped_count': []
+    }
+    for key in errors_dict:
+        print(key)
+        errors = list(map(nan_to_none, errors_dict[key]))
+        no_onset_count = errors.count(None)
+        statistics_rows['no_onset_count'].append(no_onset_count)
+        errors = list(filter(None, errors))
+        error_mean = np.mean(errors)
+        statistics_rows['error_mean'].append(error_mean)
+        absolute_error_mean = np.mean(np.abs(errors))
+        statistics_rows['abs_error_mean'].append(absolute_error_mean)
+        variance = np.var(errors)
+        statistics_rows['variance'].append(variance)
+        make_histogram(errors, key, False)
+        outliers_size = len(errors)
+        errors = [item for item in errors if abs(item) <= outlier]
+        outliers_size -= len(errors)
+        outlier_statistics_rows['dropped_count'].append(outliers_size)
+        error_mean = np.mean(errors)
+        outlier_statistics_rows['error_mean'].append(error_mean)
+        absolute_error_mean = np.mean(np.abs(errors))
+        outlier_statistics_rows['abs_error_mean'].append(absolute_error_mean)
+        variance = np.var(errors)
+        outlier_statistics_rows['variance'].append(variance)
+        make_histogram(errors, "{0}_outlier".format(key), True)
+
+    statistics_filename = filename_no_ext + " _statistics.csv"
+    outlier_statistics_filename = filename_no_ext + "_outlier_statistics.csv"
     with open(statistics_filename, 'w', newline="") as result_file:
-        for key in errors_dict:
-            print(key)
-            print("{0} STATISTICS".format(key), file=result_file)
-            errors = list(map(nan_to_none, errors_dict[key]))
-            print("No onset found - {0}".format(errors.count(None)), file=result_file)
-            errors = list(filter(None, errors))
-            print("ABSOLUTE ERROR MEAN: ", file=result_file)
-            print(np.mean(np.abs(errors)), file=result_file)
-            print("ERROR MEAN: ", file=result_file)
-            print(np.mean(errors), file=result_file)
-            print("VARIANCE: ", file=result_file)
-            print(np.var(errors), file=result_file)
-            make_histogram(errors, key, False)
-            print(file=result_file)
-            print("{0} (outlier = {1}) STATISTICS".format(key, outlier), file=result_file)
-            outliers_size = len(errors)
-            errors = [item for item in errors if abs(item) <= outlier]
-            outliers_size -= len(errors)
-            print("RESULTS DROPPED: ", file=result_file)
-            print(outliers_size, file=result_file)
-            print("ABSOLUTE ERROR MEAN: ", file=result_file)
-            print(np.mean(np.abs(errors)), file=result_file)
-            print("ERROR MEAN: ", file=result_file)
-            print(np.mean(errors), file=result_file)
-            print("VARIANCE: ", file=result_file)
-            print(np.var(errors), file=result_file)
-            make_histogram(errors, "{0}_outlier".format(key), True)
-            print(file=result_file)
+        with open(outlier_statistics_filename, 'w', newline="") as outlier_result_file:
+            wr = csv.writer(result_file, dialect='excel', delimiter=';')
+            wr_onset = csv.writer(outlier_result_file, dialect='excel', delimiter=';')
+            wr.writerow(table_titles)
+            wr_onset.writerow(table_titles)
+
+            for key in statistics_rows:
+                wr.writerow([key] + statistics_rows[key])
+            for key in outlier_statistics_rows:
+                name = key
+                if key == 'dropped_count':
+                    name = '> {0} '.format(outlier) + key
+                wr_onset.writerow([name] + outlier_statistics_rows[key])
 
 
 def prepare_plots(filename, full_data_dict, show_torque=True):
