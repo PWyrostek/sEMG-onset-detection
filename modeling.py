@@ -68,6 +68,7 @@ TESTING_STAGE = True
 STATISTICS_STAGE = True
 PLOTS_STAGE = True
 OUTLIER = 500
+REJECTED_OUTLIERS = 10
 
 def main():
     def prepare_data():
@@ -162,7 +163,7 @@ def main():
     if TESTING_STAGE:
         prepare_results(test_data, OPTIMAL_PARAMETERS, RESULTS_FILE)
     if STATISTICS_STAGE:
-        prepare_statistics(RESULTS_FILE, outlier=OUTLIER)
+        prepare_statistics(RESULTS_FILE, outlier=OUTLIER, rejected_outliers=REJECTED_OUTLIERS)
     if PLOTS_STAGE:
         prepare_plots(RESULTS_FILE, full_data_dict, show_torque=True)
 
@@ -180,7 +181,7 @@ def load_data(filename):
     return data_dict
 
 
-def prepare_statistics(filename, outlier):
+def prepare_statistics(filename, outlier, rejected_outliers):
     def nan_to_none(x):
         if math.isnan(x):
             return None
@@ -225,16 +226,24 @@ def prepare_statistics(filename, outlier):
     statistics_rows = {
         'error_mean': [],
         'abs_error_mean': [],
-        'variance': [],
+        'standard_deviation': [],
         'no_onset_count': []
     }
 
     outlier_statistics_rows = {
         'error_mean': [],
         'abs_error_mean': [],
-        'variance': [],
+        'standard_deviation': [],
         'dropped_count': []
     }
+
+    rejected_outliers_statistics_rows = {
+        'error_mean': [],
+        'abs_error_mean': [],
+        'standard_deviation': [],
+        'dropped_count': []
+    }
+
     for key in errors_dict:
         print(key)
         errors = list(map(nan_to_none, errors_dict[key]))
@@ -245,37 +254,66 @@ def prepare_statistics(filename, outlier):
         statistics_rows['error_mean'].append(error_mean)
         absolute_error_mean = np.mean(np.abs(errors))
         statistics_rows['abs_error_mean'].append(absolute_error_mean)
-        variance = np.var(errors)
-        statistics_rows['variance'].append(variance)
+        std = np.std(errors)
+        statistics_rows['standard_deviation'].append(std)
         make_histogram(errors, key, False)
-        outliers_size = len(errors)
-        errors = [item for item in errors if abs(item) <= outlier]
-        outliers_size -= len(errors)
+
+        outlier_errors = errors.copy()
+        outliers_size = len(outlier_errors)
+        outlier_errors = [item for item in outlier_errors if abs(item) <= outlier]
+        outliers_size -= len(outlier_errors)
         outlier_statistics_rows['dropped_count'].append(outliers_size)
-        error_mean = np.mean(errors)
+        error_mean = np.mean(outlier_errors)
         outlier_statistics_rows['error_mean'].append(error_mean)
-        absolute_error_mean = np.mean(np.abs(errors))
+        absolute_error_mean = np.mean(np.abs(outlier_errors))
         outlier_statistics_rows['abs_error_mean'].append(absolute_error_mean)
-        variance = np.var(errors)
-        outlier_statistics_rows['variance'].append(variance)
-        make_histogram(errors, "{0}_outlier".format(key), True)
+        std = np.std(outlier_errors)
+        outlier_statistics_rows['standard_deviation'].append(std)
+        make_histogram(outlier_errors, "{0}_outlier".format(key), True)
+
+        rejected_outliers_errors = errors.copy()
+        abs_errors_list = np.abs(rejected_outliers_errors)
+        indexes_to_remove = sorted(range(len(abs_errors_list)), key=lambda x: abs_errors_list[x])[-rejected_outliers:]
+        indexes_to_remove = sorted(indexes_to_remove, reverse=True)
+        for index in indexes_to_remove:
+            rejected_outliers_errors.pop(index)
+
+        rejected_outliers_statistics_rows['dropped_count'].append(rejected_outliers)
+        error_mean = np.mean(rejected_outliers_errors)
+        rejected_outliers_statistics_rows['error_mean'].append(error_mean)
+        absolute_error_mean = np.mean(np.abs(rejected_outliers_errors))
+        rejected_outliers_statistics_rows['abs_error_mean'].append(absolute_error_mean)
+        std = np.std(rejected_outliers_errors)
+        rejected_outliers_statistics_rows['standard_deviation'].append(std)
+        make_histogram(rejected_outliers_errors, "{0}_outlier".format(key), True)
 
     statistics_filename = filename_no_ext + " _statistics.csv"
     outlier_statistics_filename = filename_no_ext + "_outlier_statistics.csv"
-    with open(statistics_filename, 'w', newline="") as result_file:
-        with open(outlier_statistics_filename, 'w', newline="") as outlier_result_file:
-            wr = csv.writer(result_file, dialect='excel', delimiter=';')
-            wr_onset = csv.writer(outlier_result_file, dialect='excel', delimiter=';')
-            wr.writerow(table_titles)
-            wr_onset.writerow(table_titles)
+    rejected_statistics_filename = filename_no_ext + "_rejected_outliers_statistics.csv"
 
-            for key in statistics_rows:
-                wr.writerow([key] + statistics_rows[key])
-            for key in outlier_statistics_rows:
-                name = key
-                if key == 'dropped_count':
-                    name = '> {0} '.format(outlier) + key
-                wr_onset.writerow([name] + outlier_statistics_rows[key])
+    with open(statistics_filename, 'w', newline="") as result_file:
+        wr = csv.writer(result_file, dialect='excel', delimiter=';')
+        wr.writerow(table_titles)
+        for key in statistics_rows:
+            wr.writerow([key] + statistics_rows[key])
+
+    with open(outlier_statistics_filename, 'w', newline="") as outlier_result_file:
+        wr_outlier = csv.writer(outlier_result_file, dialect='excel', delimiter=';')
+        wr_outlier.writerow(table_titles)
+        for key in outlier_statistics_rows:
+            name = key
+            if key == 'dropped_count':
+                name = '> {0} '.format(outlier) + key
+            wr_outlier.writerow([name] + outlier_statistics_rows[key])
+
+    with open(rejected_statistics_filename, 'w', newline="") as rejected_result_file:
+        wr_rejected = csv.writer(rejected_result_file, dialect='excel', delimiter=';')
+        wr_rejected.writerow(table_titles)
+        for key in rejected_outliers_statistics_rows:
+            name = key
+            if key == 'dropped_count':
+                name = 'rejected outliers'.format(rejected_outliers)
+            wr_rejected.writerow([name] + rejected_outliers_statistics_rows[key])
 
 
 def prepare_plots(filename, full_data_dict, show_torque=True):
