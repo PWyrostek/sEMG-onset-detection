@@ -472,7 +472,6 @@ def make_plot(emg_data, torque_data, filename, expected, onsets, show_torque=Tru
     axs[0].set_xlabel("t = [ms]", fontsize=16)
     axs[0].axvline(x=expected, color='tab:green', alpha=0.5, linewidth=2,
                    label="Real onset = {0}".format(round(expected, 2)))
-
     marker_size = 10 if show_torque else 15
 
     for key in onsets:
@@ -493,13 +492,13 @@ def make_plot(emg_data, torque_data, filename, expected, onsets, show_torque=Tru
         axs[1].set_xlabel("t = [ms]", fontsize=16)
         plt.setp(axs[1].get_xticklabels(), rotation=50, fontsize=14)
         plt.setp(axs[1].get_yticklabels(), fontsize=14)
-
         fig.set_size_inches(24, 12)
         leg = axs[0].legend(loc='upper left', frameon=1, prop={'size': 7}, labelspacing=0.65, markerscale=0.8, framealpha=0.4)
     else:
         fig.delaxes(axs[1])
         fig.set_size_inches(24, 28)
         leg = axs[0].legend(loc='upper left', frameon=1, prop={'size': 20}, labelspacing=0.65, markerscale=0.9, framealpha=0.4)
+        
     frame = leg.get_frame()
     frame.set_facecolor('lightgrey')
     frame.set_edgecolor('black')
@@ -507,7 +506,6 @@ def make_plot(emg_data, torque_data, filename, expected, onsets, show_torque=Tru
     plt.setp(axs, xticks=[i for i in range(0, len(emg_data) + 100, 100)])
     plt.setp(axs[0].get_xticklabels(), rotation=50, fontsize=14)
     plt.setp(axs[0].get_yticklabels(), fontsize=14)
-
     fig.tight_layout(pad=2)
     if not os.path.exists('plots'):
         os.makedirs('plots')
